@@ -65,20 +65,12 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Vercelのrewrite後のパスを取得（元のリクエストパスを保持）
+	// Vercelのroutesを使う場合、r.URL.Pathは元のリクエストパスを保持する
 	path := r.URL.Path
 	
-	// /api/main にリライトされている場合、元のパスを取得
-	// X-Original-Path ヘッダーがある場合はそれを使用
-	if originalPath := r.Header.Get("X-Original-Path"); originalPath != "" {
-		path = originalPath
-	} else if path == "/api/main" {
-		// /api/main にリライトされている場合、Query Stringから元のパスを取得
-		if originalPath := r.URL.Query().Get("path"); originalPath != "" {
-			path = originalPath
-		} else {
-			path = "/"
-		}
+	// /api/main に直接アクセスされた場合の処理
+	if path == "/api/main" {
+		path = "/"
 	}
 
 	switch path {

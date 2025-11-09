@@ -1,0 +1,29 @@
+# 開発用ファイル
+main.go
+test_connection.go
+*.test.go
+
+# ビルド成果物
+main
+webhook-server
+*.exe
+*.dll
+*.so
+*.dylib
+
+# 環境変数ファイル
+.env
+.env.local
+.env.*.local
+
+# IDE設定
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# その他
+.DS_Store
+Thumbs.db
+

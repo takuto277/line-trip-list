@@ -45,9 +45,32 @@ ngrok http 8080
 
 ## Vercelデプロイ
 
-1. Vercelプロジェクト作成
-2. 環境変数設定（LINE_CHANNEL_SECRET, LINE_CHANNEL_TOKEN）
-3. LINE Developer Consoleでwebhook URL設定
+### 重要な設定
+
+1. **Root Directoryの設定**
+   - Vercelのダッシュボードで、プロジェクト設定を開く
+   - 「Root Directory」を`webhook-server`に設定する
+   - これが設定されていないと、404エラーが発生します
+
+2. **環境変数の設定**
+   - Vercelのダッシュボードで、環境変数を設定
+   - `LINE_CHANNEL_SECRET`: LINE Developer ConsoleのBasic settingsから取得
+   - `LINE_CHANNEL_TOKEN`: LINE Developer ConsoleのMessaging API settingsから発行
+
+3. **デプロイ**
+   - GitHubにプッシュすると自動デプロイされます
+   - または、Vercel CLIで`vercel`コマンドを実行
+
+4. **Webhook URLの設定**
+   - LINE Developer Consoleで、Webhook URLを設定
+   - URL: `https://your-project.vercel.app/webhook`
+
+### トラブルシューティング
+
+- 404エラーが発生する場合：
+  1. Root Directoryが`webhook-server`に設定されているか確認
+  2. `vercel.json`が`webhook-server`ディレクトリに存在するか確認
+  3. デプロイログでエラーがないか確認
 
 ## 取得が必要な情報
 

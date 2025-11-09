@@ -2,27 +2,90 @@ import Foundation
 import Combine
 
 // LINEメッセージの構造体
-struct LineMessage: Codable {
-    let id: String
-    let type: String
-    let text: String?
-    let timestamp: TimeInterval
-    let source: LineSource
+struct LineMessage: Codable, Identifiable {
+    let id: Int
+    let groupId: String?  // group_id から変更
+    let userId: String?   // user_id から変更
+    let message: String
+    let userName: String  // user_name から変更
+    let timestamp: Int64
+    let createdAt: String // created_at から変更
+    
+    // API レスポンス用の CodingKeys
+    enum CodingKeys: String, CodingKey {
+        case id
+        case groupId = "group_id"
+        case userId = "user_id" 
+        case message
+        case userName = "user_name"
+        case timestamp
+        case createdAt = "created_at"
+    }
 }
 
-struct LineSource: Codable {
-    let type: String  // "group", "user", "room"
-    let groupId: String?
-    let userId: String?
+// API レスポンス用の構造体
+struct MessagesResponse: Codable {
+    let messages: [LineMessage]
+    let count: Int
 }
 
 // LINE Webhook受信用のサービス
 class LineMessageService: ObservableObject {
     @Published var receivedMessages: [LineMessage] = []
     @Published var isConnected = false
+    @Published var isLoading = false
     
     private var cancellables = Set<AnyCancellable>()
-    private let baseURL = "https://api.line.me/v2/bot"
+    private let baseURL = "https://line-trip-list.vercel.app/api"
+    
+    init() {
+        fetchMessages() // 起動時にメッセージを取得
+    }
+    
+    // メッセージを取得
+    func fetchMessages() async {
+        await MainActor.run {
+            isLoading = true
+        }
+        
+        guard let url = URL(string: "\(baseURL)/messages") else {
+            await MainActor.run {
+                isLoading = false
+            }
+            return
+        }
+        
+        do {
+            let (data, response) = try await URLSession.shared.data(from: url)
+            
+            if let httpResponse = response as? HTTPURLResponse,
+               httpResponse.statusCode == 200 {
+                
+                let messagesResponse = try JSONDecoder().decode(MessagesResponse.self, from: data)
+                
+                await MainActor.run {
+                    self.receivedMessages = messagesResponse.messages.sorted { $0.timestamp > $1.timestamp }
+                    self.isLoading = false
+                }
+            } else {
+                await MainActor.run {
+                    self.isLoading = false
+                }
+            }
+        } catch {
+            print("❌ Error fetching messages: \(error)")
+            await MainActor.run {
+                self.isLoading = false
+            }
+        }
+    }
+    
+    // 同期版（SwiftUIから呼び出し用）
+    func fetchMessages() {
+        Task {
+            await fetchMessages()
+        }
+    }
     
     // メッセージを送信
     func sendMessage(to groupId: String, text: String) async throws {
@@ -30,20 +93,14 @@ class LineMessageService: ObservableObject {
             throw LineAPIError.missingToken
         }
         
-        let url = URL(string: "\(baseURL)/message/push")!
+        let url = URL(string: "\(baseURL)/send")!
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
-        request.setValue("Bearer \(Config.LineAPI.channelToken)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         
         let messageData: [String: Any] = [
-            "to": groupId,
-            "messages": [
-                [
-                    "type": "text",
-                    "text": text
-                ]
-            ]
+            "group_id": groupId,
+            "message": text
         ]
         
         request.httpBody = try JSONSerialization.data(withJSONObject: messageData)
@@ -55,67 +112,12 @@ class LineMessageService: ObservableObject {
             throw LineAPIError.sendFailed(httpResponse.statusCode)
         }
     }
-    
-    // グループ情報を取得
-    func getGroupInfo(groupId: String) async throws -> [String: Any] {
-        guard !Config.LineAPI.channelToken.isEmpty else {
-            throw LineAPIError.missingToken
-        }
-        
-        let url = URL(string: "\(baseURL)/group/\(groupId)/summary")!
-        var request = URLRequest(url: url)
-        request.setValue("Bearer \(Config.LineAPI.channelToken)", forHTTPHeaderField: "Authorization")
-        
-        let (data, response) = try await URLSession.shared.data(for: request)
-        
-        if let httpResponse = response as? HTTPURLResponse,
-           httpResponse.statusCode != 200 {
-            throw LineAPIError.requestFailed(httpResponse.statusCode)
-        }
-        
-        return try JSONSerialization.jsonObject(with: data) as? [String: Any] ?? [:]
-    }
-    
-    // Webhookからのメッセージを処理（実際の実装では、サーバーサイドで処理してアプリに通知）
-    func handleWebhookMessage(_ messageData: [String: Any]) {
-        // この関数は、実際にはサーバーサイドからプッシュ通知やWebSocketで受信したデータを処理します
-        guard let events = messageData["events"] as? [[String: Any]] else { return }
-        
-        for event in events {
-            if let type = event["type"] as? String, type == "message",
-               let message = event["message"] as? [String: Any],
-               let messageType = message["type"] as? String, messageType == "text",
-               let text = message["text"] as? String,
-               let messageId = message["id"] as? String,
-               let timestamp = event["timestamp"] as? TimeInterval,
-               let source = event["source"] as? [String: Any] {
-                
-                let lineSource = LineSource(
-                    type: source["type"] as? String ?? "",
-                    groupId: source["groupId"] as? String,
-                    userId: source["userId"] as? String
-                )
-                
-                let lineMessage = LineMessage(
-                    id: messageId,
-                    type: messageType,
-                    text: text,
-                    timestamp: timestamp,
-                    source: lineSource
-                )
-                
-                DispatchQueue.main.async {
-                    self.receivedMessages.append(lineMessage)
-                }
-            }
-        }
-    }
 }
 
 enum LineAPIError: Error {
     case missingToken
     case sendFailed(Int)
-    case requestFailed(Int)
+    case fetchFailed(Int)
     
     var localizedDescription: String {
         switch self {
@@ -123,8 +125,8 @@ enum LineAPIError: Error {
             return "LINE Channel Tokenが設定されていません"
         case .sendFailed(let code):
             return "メッセージ送信に失敗しました (HTTP \(code))"
-        case .requestFailed(let code):
-            return "APIリクエストに失敗しました (HTTP \(code))"
+        case .fetchFailed(let code):
+            return "メッセージ取得に失敗しました (HTTP \(code))"
         }
     }
 }

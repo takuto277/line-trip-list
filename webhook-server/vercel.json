@@ -5,10 +5,10 @@
       "runtime": "@vercel/go"
     }
   },
-  "rewrites": [
+  "routes": [
     {
-      "source": "/(.*)",
-      "destination": "/api/main"
+      "src": "/(.*)",
+      "dest": "/api/main"
     }
   ]
 }

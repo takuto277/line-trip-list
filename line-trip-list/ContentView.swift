@@ -22,23 +22,54 @@ struct ContentView: View {
                 // LINE メッセージセクション
                 GroupBox("LINE Messages") {
                     VStack(alignment: .leading, spacing: 10) {
+                        HStack {
+                            Text("受信メッセージ (\(lineService.receivedMessages.count))")
+                                .font(.headline)
+                            Spacer()
+                            Button("更新") {
+                                lineService.fetchMessages()
+                            }
+                            .disabled(lineService.isLoading)
+                        }
+                        
                         // 受信メッセージ一覧
-                        ScrollView {
-                            LazyVStack(alignment: .leading, spacing: 8) {
-                                ForEach(lineService.receivedMessages, id: \.id) { message in
-                                    VStack(alignment: .leading, spacing: 4) {
-                                        Text(message.text ?? "")
-                                            .padding(8)
-                                            .background(Color.blue.opacity(0.1))
-                                            .cornerRadius(8)
-                                        Text(Date(timeIntervalSince1970: message.timestamp / 1000), style: .time)
-                                            .font(.caption)
-                                            .foregroundColor(.secondary)
+                        if lineService.isLoading {
+                            ProgressView("読み込み中...")
+                                .frame(height: 200)
+                        } else if lineService.receivedMessages.isEmpty {
+                            VStack {
+                                Text("まだメッセージがありません")
+                                    .foregroundColor(.secondary)
+                                Text("LINEグループでメッセージを送信してください")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                            .frame(height: 200)
+                        } else {
+                            ScrollView {
+                                LazyVStack(alignment: .leading, spacing: 8) {
+                                    ForEach(lineService.receivedMessages) { message in
+                                        VStack(alignment: .leading, spacing: 4) {
+                                            HStack {
+                                                Text(message.userName)
+                                                    .font(.caption)
+                                                    .bold()
+                                                Spacer()
+                                                Text(formatTimestamp(message.timestamp))
+                                                    .font(.caption)
+                                                    .foregroundColor(.secondary)
+                                            }
+                                            Text(message.message)
+                                                .padding(8)
+                                                .background(Color.blue.opacity(0.1))
+                                                .cornerRadius(8)
+                                        }
+                                        .padding(.horizontal, 4)
                                     }
                                 }
                             }
+                            .frame(height: 200)
                         }
-                        .frame(height: 200)
                         
                         // メッセージ送信
                         HStack {
@@ -91,6 +122,13 @@ struct ContentView: View {
             Config.validateConfiguration()
             #endif
         }
+    }
+    
+    private func formatTimestamp(_ timestamp: Int64) -> String {
+        let date = Date(timeIntervalSince1970: TimeInterval(timestamp / 1000))
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MM/dd HH:mm"
+        return formatter.string(from: date)
     }
 
     private func sendMessage() {
