@@ -89,7 +89,7 @@ class LineMessageService: ObservableObject {
     
     // メッセージを送信
     func sendMessage(to groupId: String, text: String) async throws {
-        guard !Config.LineAPI.channelToken.isEmpty else {
+        guard !Config.MessagingAPI.channelToken.isEmpty else {
             throw LineAPIError.missingToken
         }
         

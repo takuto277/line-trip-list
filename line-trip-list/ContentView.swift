@@ -12,6 +12,7 @@ struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var items: [Item]
     @StateObject private var lineService = LineMessageService()
+    @EnvironmentObject var authService: AuthenticationService
     @State private var messageText = ""
     @State private var showingAlert = false
     @State private var alertMessage = ""
@@ -19,6 +20,39 @@ struct ContentView: View {
     var body: some View {
         NavigationSplitView {
             VStack {
+                // ユーザー情報ヘッダー
+                if let user = authService.currentUser {
+                    HStack {
+                        AsyncImage(url: URL(string: user.pictureUrl ?? "")) { image in
+                            image.resizable()
+                        } placeholder: {
+                            Image(systemName: "person.circle.fill")
+                                .resizable()
+                        }
+                        .frame(width: 40, height: 40)
+                        .clipShape(Circle())
+                        
+                        VStack(alignment: .leading) {
+                            Text(user.displayName)
+                                .font(.headline)
+                            Text(user.userId)
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                        
+                        Spacer()
+                        
+                        Button("ログアウト") {
+                            authService.logout()
+                        }
+                        .foregroundColor(.red)
+                        .font(.caption)
+                    }
+                    .padding()
+                    .background(Color(.systemGray6))
+                    .cornerRadius(10)
+                }
+                
                 // LINE メッセージセクション
                 GroupBox("LINE Messages") {
                     VStack(alignment: .leading, spacing: 10) {
@@ -79,7 +113,7 @@ struct ContentView: View {
                             Button("送信") {
                                 sendMessage()
                             }
-                            .disabled(messageText.isEmpty || Config.LineAPI.groupID.isEmpty)
+                            .disabled(messageText.isEmpty || Config.MessagingAPI.groupID.isEmpty)
                         }
                     }
                 }
@@ -134,7 +168,7 @@ struct ContentView: View {
     private func sendMessage() {
         Task {
             do {
-                try await lineService.sendMessage(to: Config.LineAPI.groupID, text: messageText)
+                try await lineService.sendMessage(to: Config.MessagingAPI.groupID, text: messageText)
                 await MainActor.run {
                     messageText = ""
                     alertMessage = "メッセージを送信しました"

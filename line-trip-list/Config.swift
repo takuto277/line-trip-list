@@ -1,14 +1,16 @@
 import Foundation
 
 struct Config {
-    // LINE API設定
-    struct LineAPI {
-        static let channelToken = ProcessInfo.processInfo.environment["LINE_CHANNEL_TOKEN"] ?? ""
-        static let channelSecret = ProcessInfo.processInfo.environment["LINE_CHANNEL_SECRET"] ?? ""
-        static let channelID = ProcessInfo.processInfo.environment["LINE_CHANNEL_ID"] ?? ""
-        static let userID = ProcessInfo.processInfo.environment["LINE_USER_ID"] ?? ""
-        static let webhookURL = ProcessInfo.processInfo.environment["LINE_WEBHOOK_URL"] ?? ""
+    // LINE Messaging API設定（Webhook・メッセージ送信用）
+    struct MessagingAPI {
+        static let channelToken = ProcessInfo.processInfo.environment["LINE_MESSAGING_TOKEN"] ?? ""
+        static let channelSecret = ProcessInfo.processInfo.environment["LINE_MESSAGING_SECRET"] ?? ""
         static let groupID = ProcessInfo.processInfo.environment["LINE_GROUP_ID"] ?? ""
+    }
+    
+    // LINE Login設定（ユーザー認証用）
+    struct LoginAPI {
+        static let channelID = ProcessInfo.processInfo.environment["LINE_LOGIN_CHANNEL_ID"] ?? ""
     }
 }
 
@@ -17,12 +19,12 @@ struct Config {
 extension Config {
     static func validateConfiguration() {
         print("🔑 Configuration Check:")
-        print("Channel Token: \(LineAPI.channelToken.isEmpty ? "❌ Missing" : "✅ Set")")
-        print("Channel Secret: \(LineAPI.channelSecret.isEmpty ? "❌ Missing" : "✅ Set")")
-        print("Channel ID: \(LineAPI.channelID.isEmpty ? "❌ Missing" : "✅ Set")")
-        print("User ID: \(LineAPI.userID.isEmpty ? "❌ Missing" : "✅ Set")")
-        print("Webhook URL: \(LineAPI.webhookURL.isEmpty ? "❌ Missing" : "✅ Set")")
-        print("Group ID: \(LineAPI.groupID.isEmpty ? "❌ Missing" : "✅ Set")")
+        print("📨 Messaging API:")
+        print("  Token: \(MessagingAPI.channelToken.isEmpty ? "❌ Missing" : "✅ Set")")
+        print("  Secret: \(MessagingAPI.channelSecret.isEmpty ? "❌ Missing" : "✅ Set")")
+        print("  Group ID: \(MessagingAPI.groupID.isEmpty ? "❌ Missing" : "✅ Set")")
+        print("🔐 Login API:")
+        print("  Channel ID: \(LoginAPI.channelID.isEmpty ? "❌ Missing" : "✅ Set")")
     }
 }
 #endif

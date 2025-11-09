@@ -7,9 +7,16 @@
 
 import SwiftUI
 import SwiftData
+import LineSDK
 
 @main
 struct line_trip_listApp: App {
+    @StateObject private var authService = AuthenticationService()
+    
+    init() {
+        LoginManager.shared.setup(channelID: Config.LoginAPI.channelID, universalLinkURL: nil)
+    }
+    
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
             Item.self,
@@ -25,8 +32,21 @@ struct line_trip_listApp: App {
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            Group {
+                if authService.isAuthenticated {
+                    ContentView()
+                        .environmentObject(authService)
+                } else {
+                    LoginView()
+                        .environmentObject(authService)
+                }
+            }
+            .onOpenURL { url in
+                // LINE SDK handles the callback automatically
+                _ = LoginManager.shared.application(.shared, open: url)
+            }
         }
         .modelContainer(sharedModelContainer)
     }
+    
 }

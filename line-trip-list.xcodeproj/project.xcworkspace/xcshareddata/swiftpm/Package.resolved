@@ -1,0 +1,15 @@
+{
+  "originHash" : "994758b1dfca0e44bea9d7e148a7cc87b8cf9ac33f4d1d7a0bdf03b6e84c12d6",
+  "pins" : [
+    {
+      "identity" : "line-sdk-ios-swift",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/line/line-sdk-ios-swift.git",
+      "state" : {
+        "revision" : "51ef2ebefb05db8f748e80208b3281ca723abcdb",
+        "version" : "5.14.0"
+      }
+    }
+  ],
+  "version" : 3
+}
