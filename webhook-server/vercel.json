@@ -1,19 +1,14 @@
 {
   "version": 2,
-  "builds": [
-    {
-      "src": "main.go",
-      "use": "@vercel/go"
+  "functions": {
+    "api/main.go": {
+      "runtime": "@vercel/go"
     }
-  ],
+  },
   "routes": [
     {
       "src": "/(.*)",
-      "dest": "/main.go"
+      "dest": "/api/main.go"
     }
-  ],
-  "env": {
-    "LINE_CHANNEL_SECRET": "@line_channel_secret",
-    "LINE_CHANNEL_TOKEN": "@line_channel_token"
-  }
+  ]
 }
