@@ -1,0 +1,13 @@
+# Dependency files
+go.sum
+
+# Environment files
+.env
+.env.local
+
+# Build outputs
+main
+webhook-server
+
+# Vercel
+.vercel
