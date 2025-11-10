@@ -61,7 +61,13 @@ struct ContentView: View {
                                 .font(.headline)
                             Spacer()
                             Button("更新") {
-                                lineService.fetchMessages()
+                                Task {
+                                    if let userId = authService.currentUser?.userId {
+                                        await lineService.fetchMessages(lineId: userId)
+                                    } else {
+                                        await lineService.fetchMessages()
+                                    }
+                                }
                             }
                             .disabled(lineService.isLoading)
                         }
@@ -82,7 +88,7 @@ struct ContentView: View {
                         } else {
                             ScrollView {
                                 LazyVStack(alignment: .leading, spacing: 8) {
-                                    ForEach(lineService.receivedMessages) { message in
+                                    ForEach(lineService.receivedMessages, id: \.timestamp) { message in
                                         VStack(alignment: .leading, spacing: 4) {
                                             HStack {
                                                 Text(message.userName)
@@ -155,6 +161,26 @@ struct ContentView: View {
             #if DEBUG
             Config.validateConfiguration()
             #endif
+
+            // 起動時にログイン済みならユーザーIDでフィルタして取得
+            Task {
+                if let userId = authService.currentUser?.userId {
+                    await lineService.fetchMessages(lineId: userId)
+                } else {
+                    await lineService.fetchMessages()
+                }
+            }
+        }
+
+        // ログイン・ログアウト時に userId が変わったら再取得
+        .onChange(of: authService.currentUser?.userId) { newUserId in
+            Task {
+                if let id = newUserId {
+                    await lineService.fetchMessages(lineId: id)
+                } else {
+                    await lineService.fetchMessages()
+                }
+            }
         }
     }
     
