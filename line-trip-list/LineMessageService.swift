@@ -69,7 +69,14 @@ class LineMessageService: ObservableObject {
         }
         
         do {
+            print("🔎 Fetching messages from URL: \(url.absoluteString)")
             let (data, response) = try await URLSession.shared.data(from: url)
+
+            if let str = String(data: data, encoding: .utf8) {
+                print("📥 Raw response: \(str)")
+            } else {
+                print("📥 Raw response: <binary>")
+            }
             
             if let httpResponse = response as? HTTPURLResponse,
                httpResponse.statusCode == 200 {

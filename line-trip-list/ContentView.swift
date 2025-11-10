@@ -63,8 +63,10 @@ struct ContentView: View {
                             Button("更新") {
                                 Task {
                                     if let userId = authService.currentUser?.userId {
+                                        print("🔁 Update pressed — using userId: \(userId)")
                                         await lineService.fetchMessages(lineId: userId)
                                     } else {
+                                        print("🔁 Update pressed — no userId, fetching all")
                                         await lineService.fetchMessages()
                                     }
                                 }

@@ -77,7 +77,7 @@
       <EnvironmentVariables>
          <EnvironmentVariable
             key = "LINE_LOGIN_CHANNEL_ID"
-            value = "2008451578"
+            value = "2008463415"
             isEnabled = "YES">
          </EnvironmentVariable>
       </EnvironmentVariables>
