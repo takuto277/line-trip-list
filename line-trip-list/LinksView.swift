@@ -74,7 +74,12 @@ struct LinksView: View {
     @ViewBuilder
     private func LinkCard(link: LineMessageService.LinkItem) -> some View {
         VStack(spacing: 8) {
-            // top label removed per request; image-focused card
+            // top: title (preview source or submitter)
+            let titleText = (link.previewImageSource?.isEmpty == false) ? link.previewImageSource! : link.sourceUser
+            Text(titleText)
+                .font(.system(size: 16, weight: .bold))
+                .foregroundColor(.primary)
+                .frame(maxWidth: .infinity, alignment: .leading)
 
             // middle: large image (or placeholder)
             ZStack {
@@ -173,6 +178,7 @@ struct LinksView: View {
             // bottom: URL limited to 2 lines
             Text(link.url)
                 .font(.caption2)
+                .foregroundColor(.secondary)
                 .lineLimit(2)
                 .truncationMode(.middle)
                 .frame(maxWidth: .infinity, alignment: .leading)
