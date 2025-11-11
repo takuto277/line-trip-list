@@ -3,7 +3,7 @@ import SwiftData
 
 struct Persistence {
     static let shared: ModelContainer = {
-        let schema = Schema([Message.self, LinkPreview.self])
+        let schema = Schema([Message.self, LinkPreview.self, UserDisplayName.self])
         let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
         do {
             return try ModelContainer(for: schema, configurations: [modelConfiguration])
@@ -32,6 +32,30 @@ struct Persistence {
             try context.save()
         } catch {
             print("⚠️ Failed to save messages: \(error)")
+        }
+    }
+
+    static func fetchAllUserDisplayNames(from context: ModelContext) -> [UserDisplayName] {
+        do {
+            return try context.fetch(UserDisplayName.self)
+        } catch {
+            print("⚠️ Failed to fetch UserDisplayName: \(error)")
+            return []
+        }
+    }
+
+    static func upsertUserDisplayName(userId: String, displayName: String, into context: ModelContext) {
+        // try to find existing by userId
+        if let existing = (try? context.fetch(UserDisplayName.self).first(where: { $0.userId == userId })) {
+            existing.displayName = displayName
+        } else {
+            let u = UserDisplayName(userId: userId, displayName: displayName)
+            context.insert(u)
+        }
+        do {
+            try context.save()
+        } catch {
+            print("⚠️ Failed to upsert UserDisplayName: \(error)")
         }
     }
 }

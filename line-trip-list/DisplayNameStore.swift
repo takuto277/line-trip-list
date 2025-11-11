@@ -12,17 +12,18 @@ final class DisplayNameStore: ObservableObject {
     }
 
     func load() {
-        if let data = UserDefaults.standard.data(forKey: key), let dict = try? JSONDecoder().decode([String: String].self, from: data) {
-            overrides = dict
-        } else {
-            overrides = [:]
+        // load from SwiftData using Persistence helper
+        let context = ModelContext(container: Persistence.shared)
+        let users = Persistence.fetchAllUserDisplayNames(from: context)
+        var dict: [String: String] = [:]
+        for u in users {
+            dict[u.userId] = u.displayName
         }
+        overrides = dict
     }
 
     private func persist() {
-        if let data = try? JSONEncoder().encode(overrides) {
-            UserDefaults.standard.set(data, forKey: key)
-        }
+        // persisted via SwiftData in setOverride/removeOverride
     }
 
     func setOverride(_ name: String, for userId: String) {
@@ -31,12 +32,19 @@ final class DisplayNameStore: ObservableObject {
         } else {
             overrides[userId] = name
         }
-        persist()
+        // persist to SwiftData
+        let context = ModelContext(container: Persistence.shared)
+        Persistence.upsertUserDisplayName(userId: userId, displayName: name, into: context)
     }
 
     func removeOverride(for userId: String) {
         overrides.removeValue(forKey: userId)
-        persist()
+        let context = ModelContext(container: Persistence.shared)
+        // upsert empty -> remove
+        if let existing = (try? context.fetch(UserDisplayName.self).first(where: { $0.userId == userId })) {
+            context.delete(existing)
+            try? context.save()
+        }
     }
 
     func binding(for userId: String) -> Binding<String> {

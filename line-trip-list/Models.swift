@@ -36,3 +36,16 @@ final class Message {
         self.preview = preview
     }
 }
+
+@Model
+final class UserDisplayName {
+    @Attribute(.unique) var id: String
+    var userId: String
+    var displayName: String
+
+    init(id: String = UUID().uuidString, userId: String, displayName: String) {
+        self.id = id
+        self.userId = userId
+        self.displayName = displayName
+    }
+}
