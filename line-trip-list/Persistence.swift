@@ -37,7 +37,7 @@ struct Persistence {
 
     static func fetchAllUserDisplayNames(from context: ModelContext) -> [UserDisplayName] {
         do {
-            return try context.fetch(UserDisplayName.self)
+            return try context.fetch(FetchDescriptor<UserDisplayName>())
         } catch {
             print("⚠️ Failed to fetch UserDisplayName: \(error)")
             return []
@@ -46,7 +46,7 @@ struct Persistence {
 
     static func upsertUserDisplayName(userId: String, displayName: String, into context: ModelContext) {
         // try to find existing by userId
-        if let existing = (try? context.fetch(UserDisplayName.self).first(where: { $0.userId == userId })) {
+        if let existing = (try? context.fetch(FetchDescriptor<UserDisplayName>()).first(where: { $0.userId == userId })) {
             existing.displayName = displayName
         } else {
             let u = UserDisplayName(userId: userId, displayName: displayName)

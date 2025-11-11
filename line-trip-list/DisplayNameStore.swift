@@ -1,4 +1,5 @@
 import Foundation
+import SwiftData
 import Combine
 import SwiftUI
 
@@ -13,8 +14,8 @@ final class DisplayNameStore: ObservableObject {
 
     func load() {
         // load from SwiftData using Persistence helper
-        let context = ModelContext(container: Persistence.shared)
-        let users = Persistence.fetchAllUserDisplayNames(from: context)
+    let context = ModelContext(container: Persistence.shared)
+    let users = Persistence.fetchAllUserDisplayNames(from: context)
         var dict: [String: String] = [:]
         for u in users {
             dict[u.userId] = u.displayName
@@ -33,7 +34,7 @@ final class DisplayNameStore: ObservableObject {
             overrides[userId] = name
         }
         // persist to SwiftData
-        let context = ModelContext(container: Persistence.shared)
+    let context = ModelContext(container: Persistence.shared)
         Persistence.upsertUserDisplayName(userId: userId, displayName: name, into: context)
     }
 
@@ -41,7 +42,7 @@ final class DisplayNameStore: ObservableObject {
         overrides.removeValue(forKey: userId)
         let context = ModelContext(container: Persistence.shared)
         // upsert empty -> remove
-        if let existing = (try? context.fetch(UserDisplayName.self).first(where: { $0.userId == userId })) {
+        if let existing = (try? context.fetch(FetchDescriptor<UserDisplayName>()).first(where: { $0.userId == userId })) {
             context.delete(existing)
             try? context.save()
         }
