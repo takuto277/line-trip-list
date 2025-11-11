@@ -42,7 +42,7 @@ struct SettingsView: View {
                     if nameStore.overrides.isEmpty {
                         Text("No overrides set").foregroundColor(.secondary)
                     } else {
-                        ForEach(nameStore.overrides.keys.sorted(), id: \.self) { userId in
+                        ForEach(Array(nameStore.overrides.keys.sorted()), id: \.self) { userId in
                             HStack {
                                 Text(userId).font(.caption2)
                                 TextField("表示名", text: nameStore.binding(for: userId))
@@ -60,5 +60,7 @@ struct SettingsView: View {
 struct SettingsView_Previews: PreviewProvider {
     static var previews: some View {
         SettingsView()
+            .environmentObject(AuthenticationService())
+            .environmentObject(DisplayNameStore())
     }
 }
