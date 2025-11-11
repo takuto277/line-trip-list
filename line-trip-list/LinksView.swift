@@ -169,10 +169,9 @@ struct LinksView: View {
                                 .frame(maxWidth: .infinity)
                                 .aspectRatio(16.0/9.0, contentMode: .fit)
                         case .success(let image):
-                            image.resizable().scaledToFill()
+                            image.resizable().scaledToFit()
                                 .frame(maxWidth: .infinity)
                                 .frame(height: 160)
-                                .clipped()
                         case .failure:
                             Image(systemName: "photo")
                                 .resizable()
@@ -189,16 +188,16 @@ struct LinksView: View {
                         case .empty:
                             ProgressView().frame(maxWidth: .infinity).aspectRatio(16.0/9.0, contentMode: .fit)
                         case .success(let image):
-                            image.resizable().scaledToFill().frame(maxWidth: .infinity).frame(height: 160).clipped()
+                            image.resizable().scaledToFit().frame(maxWidth: .infinity).frame(height: 160)
                         case .failure:
                             Image(systemName: "photo").resizable().scaledToFit().frame(maxWidth: .infinity).aspectRatio(16.0/9.0, contentMode: .fit)
                         @unknown default:
                             EmptyView()
                         }
                     }
-                } else {
-                    Rectangle().fill(Color(UIColor.systemGray5)).frame(maxWidth: .infinity).frame(height: 160)
-                }
+                    } else {
+                        Rectangle().fill(Color(UIColor.systemGray5)).frame(maxWidth: .infinity).frame(height: 160)
+                    }
             }
 
             // bottom: URL limited to 2 lines
