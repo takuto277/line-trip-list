@@ -128,6 +128,8 @@ class LineMessageService: ObservableObject {
         let timestamp: Int64
         var isImage: Bool = false
         var previewImageURL: String? = nil
+        // optional human-readable name used to obtain the preview (e.g. place query, "og:image", "map")
+        var previewImageSource: String? = nil
     }
 
     static func extractLinks(from messages: [LineMessage]) -> [LinkItem] {
@@ -213,6 +215,7 @@ class LineMessageService: ObservableObject {
                     if let og = Self.extractMetaContent(from: html, property: "og:image") {
                         await MainActor.run {
                             updated[idx].previewImageURL = og
+                            updated[idx].previewImageSource = "og:image"
                             self.extractedLinks = updated
                         }
                         print("✅ Found og:image for \(link.url): \(og)")
@@ -224,6 +227,7 @@ class LineMessageService: ObservableObject {
                     if let tw = Self.extractMetaContent(from: html, name: "twitter:image") {
                         await MainActor.run {
                             updated[idx].previewImageURL = tw
+                            updated[idx].previewImageSource = "twitter:image"
                             self.extractedLinks = updated
                         }
                         print("✅ Found twitter:image for \(link.url): \(tw)")
@@ -237,6 +241,7 @@ class LineMessageService: ObservableObject {
                         let sm = "https://staticmap.openstreetmap.de/staticmap.php?center=\(lat),\(lon)&zoom=15&size=600x300&markers=\(lat),\(lon),red-pushpin"
                         await MainActor.run {
                             updated[idx].previewImageURL = sm
+                            updated[idx].previewImageSource = "map: \(lat),\(lon)"
                             self.extractedLinks = updated
                         }
                         print("🗺️ Generated static map preview for \(link.url) -> \(sm)")
@@ -252,6 +257,7 @@ class LineMessageService: ObservableObject {
                                 let sm = "https://staticmap.openstreetmap.de/staticmap.php?center=\(glat),\(glon)&zoom=15&size=600x300&markers=\(glat),\(glon),red-pushpin"
                                 await MainActor.run {
                                     updated[idx].previewImageURL = sm
+                                    updated[idx].previewImageSource = decoded
                                     self.extractedLinks = updated
                                 }
                                 print("🗺️ Generated static map via geocoding for \(link.url) -> \(sm)")
@@ -266,6 +272,7 @@ class LineMessageService: ObservableObject {
                                     if !imageUrl.isEmpty {
                                         await MainActor.run {
                                             updated[idx].previewImageURL = imageUrl
+                                            updated[idx].previewImageSource = placeQuery
                                             self.extractedLinks = updated
                                         }
                                         print("🖼️ Got image from search for \(placeQuery): \(imageUrl)")
