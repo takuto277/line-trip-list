@@ -55,4 +55,22 @@ final class DisplayNameStore: ObservableObject {
         guard let id = userId else { return fallback }
         return overrides[id] ?? fallback
     }
+
+    // Add discovered userIds if not present in overrides (persist as empty display name)
+    func addDiscoveredUserIds(_ userIds: [String?]) {
+        let context = ModelContext(container: Persistence.shared)
+        var changed = false
+        for maybe in userIds {
+            guard let uid = maybe else { continue }
+            if overrides[uid] == nil {
+                overrides[uid] = ""
+                Persistence.upsertUserDisplayName(userId: uid, displayName: "", into: context)
+                changed = true
+            }
+        }
+        if changed {
+            // ensure UI updates
+            objectWillChange.send()
+        }
+    }
 }

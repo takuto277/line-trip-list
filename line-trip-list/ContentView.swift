@@ -13,6 +13,7 @@ struct ContentView: View {
     @Query private var items: [Item]
     @StateObject private var lineService = LineMessageService()
     @EnvironmentObject var authService: AuthenticationService
+    @EnvironmentObject var nameStore: DisplayNameStore
     @State private var messageText = ""
     @State private var showingAlert = false
     @State private var alertMessage = ""
@@ -55,10 +56,13 @@ struct ContentView: View {
                                         print("🔁 Update pressed — using userId: \(userId)")
                                         await lineService.fetchMessages(lineId: userId)
                                         await lineService.persistMessages(into: modelContext)
+                                        // add discovered userIds to overrides list if missing
+                                        nameStore.addDiscoveredUserIds(lineService.receivedMessages.map { $0.userId })
                                     } else {
                                         print("🔁 Update pressed — no userId, fetching all")
                                         await lineService.fetchMessages()
                                         await lineService.persistMessages(into: modelContext)
+                                        nameStore.addDiscoveredUserIds(lineService.receivedMessages.map { $0.userId })
                                     }
                                 }
                             }
@@ -84,7 +88,7 @@ struct ContentView: View {
                                     ForEach(lineService.receivedMessages, id: \.timestamp) { message in
                                         VStack(alignment: .leading, spacing: 4) {
                                             HStack {
-                                                Text(message.userName)
+                                                Text(nameStore.displayName(for: message.userId, fallback: message.userName))
                                                     .font(.caption)
                                                     .bold()
                                                 Spacer()
