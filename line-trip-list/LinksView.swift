@@ -62,18 +62,17 @@ struct LinksView: View {
                         case .empty:
                             ProgressView()
                                 .frame(maxWidth: .infinity)
-                                .frame(height: 140)
+                                .aspectRatio(16.0/9.0, contentMode: .fit)
                         case .success(let image):
-                            image.resizable().scaledToFill()
+                            image.resizable().scaledToFit()
                                 .frame(maxWidth: .infinity)
-                                .frame(height: 140)
-                                .clipped()
+                                .aspectRatio(16.0/9.0, contentMode: .fit)
                         case .failure:
                             Image(systemName: "photo")
                                 .resizable()
                                 .scaledToFit()
                                 .frame(maxWidth: .infinity)
-                                .frame(height: 140)
+                                .aspectRatio(16.0/9.0, contentMode: .fit)
                         @unknown default:
                             EmptyView()
                         }
@@ -82,17 +81,17 @@ struct LinksView: View {
                     AsyncImage(url: url) { phase in
                         switch phase {
                         case .empty:
-                            ProgressView().frame(maxWidth: .infinity).frame(height: 140)
+                            ProgressView().frame(maxWidth: .infinity).aspectRatio(16.0/9.0, contentMode: .fit)
                         case .success(let image):
-                            image.resizable().scaledToFill().frame(maxWidth: .infinity).frame(height: 140).clipped()
+                            image.resizable().scaledToFit().frame(maxWidth: .infinity).aspectRatio(16.0/9.0, contentMode: .fit)
                         case .failure:
-                            Image(systemName: "photo").resizable().scaledToFit().frame(maxWidth: .infinity).frame(height: 140)
+                            Image(systemName: "photo").resizable().scaledToFit().frame(maxWidth: .infinity).aspectRatio(16.0/9.0, contentMode: .fit)
                         @unknown default:
                             EmptyView()
                         }
                     }
                 } else {
-                    Rectangle().fill(Color(UIColor.systemGray5)).frame(maxWidth: .infinity).frame(height: 140)
+                    Rectangle().fill(Color(UIColor.systemGray5)).frame(maxWidth: .infinity).aspectRatio(16.0/9.0, contentMode: .fit)
                 }
             }
 
