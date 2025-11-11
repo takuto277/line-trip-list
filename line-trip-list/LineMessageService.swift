@@ -1,4 +1,5 @@
 import Foundation
+import SwiftData
 import Combine
 
 // LINEメッセージの構造体
@@ -48,10 +49,10 @@ class LineMessageService: ObservableObject {
     }
 
     // Persist fetched messages into SwiftData ModelContext
-    func persistMessages(into context: any ModelContext) async {
+    func persistMessages(into context: ModelContext) async {
         await MainActor.run {
             // convert and save using Persistence helper
-            Persistence.saveMessageDTOs(self.receivedMessages, into: context as! ModelContext)
+            Persistence.saveMessageDTOs(self.receivedMessages, into: context )
         }
     }
     

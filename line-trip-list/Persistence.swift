@@ -17,7 +17,8 @@ struct Persistence {
             // use server id if present, otherwise uuid
             let id = m.id.map { String($0) } ?? UUID().uuidString
             // check for existing
-            if let existing = try? context.fetch(Message.self, where: #Predicate { $0.id == id }).first {
+            // Fetch existing Message by id using a FetchDescriptor to satisfy generic requirements
+            if let existing = try? context.fetch(FetchDescriptor<Message>(predicate: #Predicate { $0.id == id })).first {
                 // update fields
                 existing.text = m.message
                 existing.lineId = m.userId ?? ""
