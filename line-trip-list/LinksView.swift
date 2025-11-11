@@ -6,49 +6,96 @@ struct LinksView: View {
 
     var body: some View {
         NavigationStack {
-            List {
+            ScrollView {
                 if lineService.extractedLinks.isEmpty {
-                    Text("共有されたリンクはありません")
-                        .foregroundColor(.secondary)
+                    VStack {
+                        Text("共有されたリンクはありません")
+                            .foregroundColor(.secondary)
+                    }
+                    .frame(maxWidth: .infinity, minHeight: 200)
                 } else {
-                    ForEach(lineService.extractedLinks) { link in
-                        HStack {
-                            if let preview = link.previewImageURL, let url = URL(string: preview) {
-                                AsyncImage(url: url) { phase in
-                                    switch phase {
-                                    case .empty: ProgressView().frame(width:60,height:60)
-                                    case .success(let image): image.resizable().scaledToFill().frame(width:60,height:60).clipped()
-                                    case .failure: Image(systemName: "photo").frame(width:60,height:60)
-                                    @unknown default: EmptyView()
+                    let columns = [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)]
+                    LazyVGrid(columns: columns, alignment: .leading, spacing: 12) {
+                        ForEach(lineService.extractedLinks) { link in
+                            LinkCard(link: link)
+                                .background(RoundedRectangle(cornerRadius: 8).fill(Color(UIColor.secondarySystemBackground)))
+                                .onTapGesture {
+                                    if let u = URL(string: link.url) {
+                                        UIApplication.shared.open(u)
                                     }
                                 }
-                            } else if link.isImage, let url = URL(string: link.url) {
-                                AsyncImage(url: url) { phase in
-                                    switch phase {
-                                    case .empty: ProgressView().frame(width:60,height:60)
-                                    case .success(let image): image.resizable().scaledToFill().frame(width:60,height:60).clipped()
-                                    case .failure: Image(systemName: "photo").frame(width:60,height:60)
-                                    @unknown default: EmptyView()
-                                    }
+                                .contextMenu {
+                                    Button("Copy URL") { UIPasteboard.general.string = link.url }
                                 }
-                            } else {
-                                Rectangle().fill(Color.clear).frame(width:60,height:60)
-                            }
-
-                            VStack(alignment: .leading) {
-                                Text(link.url).font(.caption).lineLimit(1).truncationMode(.middle)
-                                Text(nameStore.displayName(for: link.sourceUserId, fallback: link.sourceUser)).font(.caption2).foregroundColor(.secondary)
-                            }
-                        }
-                        .contextMenu {
-                            Button("Copy URL") { UIPasteboard.general.string = link.url }
                         }
                     }
+                    .padding(.horizontal)
                 }
             }
             .navigationTitle("Shared Links")
             .toolbar { Button("Refresh") { Task { await lineService.fetchMessages(); await lineService.validateImageLinks() } } }
         }
+    }
+
+    // Card view for each link
+    @ViewBuilder
+    private func LinkCard(link: LineMessageService.LinkItem) -> some View {
+        VStack(spacing: 8) {
+            // top: submitter name
+            Text(nameStore.displayName(for: link.sourceUserId, fallback: link.sourceUser))
+                .font(.caption)
+                .foregroundColor(.secondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+            // middle: large image (or placeholder)
+            ZStack {
+                if let preview = link.previewImageURL, let url = URL(string: preview) {
+                    AsyncImage(url: url) { phase in
+                        switch phase {
+                        case .empty:
+                            ProgressView()
+                                .frame(maxWidth: .infinity, minHeight: 140)
+                        case .success(let image):
+                            image.resizable().scaledToFill()
+                                .frame(maxWidth: .infinity, minHeight: 140)
+                                .clipped()
+                        case .failure:
+                            Image(systemName: "photo")
+                                .resizable()
+                                .scaledToFit()
+                                .frame(maxWidth: .infinity, minHeight: 140)
+                        @unknown default:
+                            EmptyView()
+                        }
+                    }
+                } else if link.isImage, let url = URL(string: link.url) {
+                    AsyncImage(url: url) { phase in
+                        switch phase {
+                        case .empty:
+                            ProgressView().frame(maxWidth: .infinity, minHeight: 140)
+                        case .success(let image):
+                            image.resizable().scaledToFill()
+                                .frame(maxWidth: .infinity, minHeight: 140)
+                                .clipped()
+                        case .failure:
+                            Image(systemName: "photo").resizable().scaledToFit().frame(maxWidth: .infinity, minHeight: 140)
+                        @unknown default:
+                            EmptyView()
+                        }
+                    }
+                } else {
+                    Rectangle().fill(Color(UIColor.systemGray5)).frame(maxWidth: .infinity, minHeight: 140)
+                }
+            }
+
+            // bottom: URL limited to 2 lines
+            Text(link.url)
+                .font(.caption2)
+                .lineLimit(2)
+                .truncationMode(.middle)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(8)
     }
 }
 
