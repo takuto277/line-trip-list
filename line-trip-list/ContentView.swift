@@ -126,9 +126,12 @@ struct ContentView: View {
                 if let userId = authService.currentUser?.userId {
                     await lineService.fetchMessages(lineId: userId)
                     await lineService.persistMessages(into: modelContext)
+                    // populate overrides from fetched messages
+                    nameStore.addDiscoveredUserIds(lineService.receivedMessages.map { $0.userId ?? $0.userName })
                 } else {
                     await lineService.fetchMessages()
                     await lineService.persistMessages(into: modelContext)
+                    nameStore.addDiscoveredUserIds(lineService.receivedMessages.map { $0.userId ?? $0.userName })
                 }
             }
         }
@@ -139,9 +142,11 @@ struct ContentView: View {
                 if let id = newUserId {
                     await lineService.fetchMessages(lineId: id)
                     await lineService.persistMessages(into: modelContext)
+                    nameStore.addDiscoveredUserIds(lineService.receivedMessages.map { $0.userId ?? $0.userName })
                 } else {
                     await lineService.fetchMessages()
                     await lineService.persistMessages(into: modelContext)
+                    nameStore.addDiscoveredUserIds(lineService.receivedMessages.map { $0.userId ?? $0.userName })
                 }
             }
         }

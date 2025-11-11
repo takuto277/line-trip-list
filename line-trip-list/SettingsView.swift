@@ -40,17 +40,6 @@ struct SettingsView: View {
                 }
 
                 Section(header: Text("Display name overrides")) {
-                    HStack {
-                        TextField("手動で userId を追加", text: $newUserId)
-                            .textFieldStyle(RoundedBorderTextFieldStyle())
-                        Button("追加") {
-                            let uid = newUserId.trimmingCharacters(in: .whitespacesAndNewlines)
-                            guard !uid.isEmpty else { return }
-                            nameStore.addDiscoveredUserIds([uid])
-                            newUserId = ""
-                        }
-                        .disabled(newUserId.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                    }
                     if nameStore.overrides.isEmpty {
                         Text("No overrides set").foregroundColor(.secondary)
                     } else {
@@ -59,6 +48,12 @@ struct SettingsView: View {
                                 Text(userId).font(.caption2)
                                 TextField("表示名", text: nameStore.binding(for: userId))
                                     .textFieldStyle(RoundedBorderTextFieldStyle())
+                                Spacer()
+                                Button(role: .destructive) {
+                                    nameStore.removeOverride(for: userId)
+                                } label: {
+                                    Image(systemName: "trash")
+                                }
                             }
                         }
                     }

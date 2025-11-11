@@ -28,14 +28,12 @@ final class DisplayNameStore: ObservableObject {
     }
 
     func setOverride(_ name: String, for userId: String) {
-        if name.isEmpty {
-            overrides.removeValue(forKey: userId)
-        } else {
-            overrides[userId] = name
-        }
-        // persist to SwiftData
-    let context = ModelContext(Persistence.shared)
-    Persistence.upsertUserDisplayName(userId: userId, displayName: name, into: context)
+        // Keep empty overrides so the Settings TextField doesn't disappear when focused.
+        // Use explicit remove via `removeOverride(for:)` when user wants to delete.
+        overrides[userId] = name
+        // persist to SwiftData (allow empty string)
+        let context = ModelContext(Persistence.shared)
+        Persistence.upsertUserDisplayName(userId: userId, displayName: name, into: context)
     }
 
     func removeOverride(for userId: String) {
