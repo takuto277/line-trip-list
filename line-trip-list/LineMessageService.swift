@@ -213,24 +213,52 @@ class LineMessageService: ObservableObject {
                 if let html = String(data: data, encoding: .utf8) {
                     // try to find og:image or twitter:image
                     if let og = Self.extractMetaContent(from: html, property: "og:image") {
+                        // determine a friendly label: prefer og:site_name -> og:title -> host
+                        let siteName = Self.extractMetaContent(from: html, property: "og:site_name")
+                        let pageTitle = Self.extractMetaContent(from: html, property: "og:title") ?? Self.matchFirst(html: html, pattern: "<title[^>]*>([\\s\\S]*?)<\\/title>")
+                        let host = finalURL.host ?? URL(string: link.url)?.host
+                        let label: String
+                        if let s = siteName, !s.isEmpty {
+                            label = "サイト画像（\(s)）"
+                        } else if let t = pageTitle, !t.isEmpty {
+                            label = "ページ画像（\(t)）"
+                        } else if let h = host {
+                            label = "サイト画像（\(h)）"
+                        } else {
+                            label = "サイト画像"
+                        }
                         await MainActor.run {
                             updated[idx].previewImageURL = og
-                            updated[idx].previewImageSource = "og:image"
+                            updated[idx].previewImageSource = label
                             self.extractedLinks = updated
                         }
-                        print("✅ Found og:image for \(link.url): \(og)")
+                        print("✅ Found og:image for \(link.url): \(og) (label: \(label))")
                         fetched += 1
                         continue
                     } else {
                         print("ℹ️ No og:image found in HTML for \(link.url)")
                     }
                     if let tw = Self.extractMetaContent(from: html, name: "twitter:image") {
+                        // friendly label similar to OG
+                        let siteName = Self.extractMetaContent(from: html, property: "og:site_name")
+                        let pageTitle = Self.extractMetaContent(from: html, property: "og:title") ?? Self.matchFirst(html: html, pattern: "<title[^>]*>([\\s\\S]*?)<\\/title>")
+                        let host = finalURL.host ?? URL(string: link.url)?.host
+                        let label: String
+                        if let s = siteName, !s.isEmpty {
+                            label = "サイト画像（\(s)）"
+                        } else if let t = pageTitle, !t.isEmpty {
+                            label = "ページ画像（\(t)）"
+                        } else if let h = host {
+                            label = "サイト画像（\(h)）"
+                        } else {
+                            label = "サイト画像"
+                        }
                         await MainActor.run {
                             updated[idx].previewImageURL = tw
-                            updated[idx].previewImageSource = "twitter:image"
+                            updated[idx].previewImageSource = label
                             self.extractedLinks = updated
                         }
-                        print("✅ Found twitter:image for \(link.url): \(tw)")
+                        print("✅ Found twitter:image for \(link.url): \(tw) (label: \(label))")
                         fetched += 1
                         continue
                     }
@@ -239,12 +267,13 @@ class LineMessageService: ObservableObject {
                     if let (lat, lon) = Self.extractCoordinates(from: finalStr) {
                         // OpenStreetMap の静的マップを利用
                         let sm = "https://staticmap.openstreetmap.de/staticmap.php?center=\(lat),\(lon)&zoom=15&size=600x300&markers=\(lat),\(lon),red-pushpin"
+                        let label = "地図（\(String(format: "%.5f", lat)),\(String(format: "%.5f", lon))）"
                         await MainActor.run {
                             updated[idx].previewImageURL = sm
-                            updated[idx].previewImageSource = "map: \(lat),\(lon)"
+                            updated[idx].previewImageSource = label
                             self.extractedLinks = updated
                         }
-                        print("🗺️ Generated static map preview for \(link.url) -> \(sm)")
+                        print("🗺️ Generated static map preview for \(link.url) -> \(sm) (label: \(label))")
                         fetched += 1
                         continue
                     } else {
@@ -253,14 +282,15 @@ class LineMessageService: ObservableObject {
                         if let addr = Self.extractQueryParam(from: finalStr, name: "q"), !addr.isEmpty {
                             let decoded = addr.removingPercentEncoding ?? addr
                             print("🔎 Found q= param, trying geocode: \(decoded)")
-                            if let (glat, glon) = try? await Self.geocodeAddressWithNominatim(address: decoded) {
+                                if let (glat, glon) = try? await Self.geocodeAddressWithNominatim(address: decoded) {
                                 let sm = "https://staticmap.openstreetmap.de/staticmap.php?center=\(glat),\(glon)&zoom=15&size=600x300&markers=\(glat),\(glon),red-pushpin"
+                                let label = "地図（\(decoded)）"
                                 await MainActor.run {
                                     updated[idx].previewImageURL = sm
-                                    updated[idx].previewImageSource = decoded
+                                    updated[idx].previewImageSource = label
                                     self.extractedLinks = updated
                                 }
-                                print("🗺️ Generated static map via geocoding for \(link.url) -> \(sm)")
+                                print("🗺️ Generated static map via geocoding for \(link.url) -> \(sm) (label: \(label))")
                                 fetched += 1
                                 continue
                             } else {
@@ -270,12 +300,13 @@ class LineMessageService: ObservableObject {
                                 print("🔎 Falling back to image search for: \(placeQuery)")
                                 if let imageUrl = try? await Self.searchImageForPlace(placeQuery, baseURL: self.baseURL) {
                                     if !imageUrl.isEmpty {
+                                        let label = "検索画像（\(placeQuery)）"
                                         await MainActor.run {
                                             updated[idx].previewImageURL = imageUrl
-                                            updated[idx].previewImageSource = placeQuery
+                                            updated[idx].previewImageSource = label
                                             self.extractedLinks = updated
                                         }
-                                        print("🖼️ Got image from search for \(placeQuery): \(imageUrl)")
+                                        print("🖼️ Got image from search for \(placeQuery): \(imageUrl) (label: \(label))")
                                         fetched += 1
                                         continue
                                     } else {
