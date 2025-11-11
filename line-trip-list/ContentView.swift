@@ -24,25 +24,7 @@ struct ContentView: View {
                 // Header moved to Settings; keep a small spacer
                 Spacer().frame(height: 6)
                 
-                // LINE メッセージセクション
-                // 共有リンクセクション
-                GroupBox("Shared Links") {
-                    VStack(alignment: .leading, spacing: 8) {
-                        if lineService.extractedLinks.isEmpty {
-                            Text("共有されたリンクはまだありません")
-                                .foregroundColor(.secondary)
-                                .frame(height: 60)
-                        } else {
-                            ForEach(lineService.extractedLinks) { link in
-                                LinkRowView(link: link)
-                                    .padding(.vertical, 4)
-                            }
-                        }
-                    }
-                    .padding(.vertical, 6)
-                }
-
-// LinkRowView is defined at file scope below to avoid ViewBuilder declaration issues
+                // LinkRowView is defined at file scope below to avoid ViewBuilder declaration issues
 
                 GroupBox("LINE Messages") {
                     VStack(alignment: .leading, spacing: 10) {
@@ -72,7 +54,7 @@ struct ContentView: View {
                         // 受信メッセージ一覧
                         if lineService.isLoading {
                             ProgressView("読み込み中...")
-                                .frame(height: 200)
+                                .frame(minHeight: 200)
                         } else if lineService.receivedMessages.isEmpty {
                             VStack {
                                 Text("まだメッセージがありません")
@@ -81,7 +63,7 @@ struct ContentView: View {
                                     .font(.caption)
                                     .foregroundColor(.secondary)
                             }
-                            .frame(height: 200)
+                            .frame(minHeight: 200)
                         } else {
                             ScrollView {
                                 LazyVStack(alignment: .leading, spacing: 8) {
@@ -104,8 +86,9 @@ struct ContentView: View {
                                         .padding(.horizontal, 4)
                                     }
                                 }
+                                .padding(.bottom, 20)
                             }
-                            .frame(height: 200)
+                            .frame(maxHeight: .infinity)
                         }
                         
                         // メッセージ送信
