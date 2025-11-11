@@ -213,52 +213,36 @@ class LineMessageService: ObservableObject {
                 if let html = String(data: data, encoding: .utf8) {
                     // try to find og:image or twitter:image
                     if let og = Self.extractMetaContent(from: html, property: "og:image") {
-                        // determine a friendly label: prefer og:site_name -> og:title -> host
+                        // prefer og:site_name -> og:title -> host (no wrapper text)
                         let siteName = Self.extractMetaContent(from: html, property: "og:site_name")
                         let pageTitle = Self.extractMetaContent(from: html, property: "og:title") ?? Self.matchFirst(html: html, pattern: "<title[^>]*>([\\s\\S]*?)<\\/title>")
                         let host = finalURL.host ?? URL(string: link.url)?.host
-                        let label: String
-                        if let s = siteName, !s.isEmpty {
-                            label = "サイト画像（\(s)）"
-                        } else if let t = pageTitle, !t.isEmpty {
-                            label = "ページ画像（\(t)）"
-                        } else if let h = host {
-                            label = "サイト画像（\(h)）"
-                        } else {
-                            label = "サイト画像"
-                        }
+                        let label = siteName ?? pageTitle ?? host ?? ""
+                        let displayLabel = label.trimmingCharacters(in: .whitespacesAndNewlines)
                         await MainActor.run {
                             updated[idx].previewImageURL = og
-                            updated[idx].previewImageSource = label
+                            updated[idx].previewImageSource = displayLabel
                             self.extractedLinks = updated
                         }
-                        print("✅ Found og:image for \(link.url): \(og) (label: \(label))")
+                        print("✅ Found og:image for \(link.url): \(og) (label: \(displayLabel))")
                         fetched += 1
                         continue
                     } else {
                         print("ℹ️ No og:image found in HTML for \(link.url)")
                     }
                     if let tw = Self.extractMetaContent(from: html, name: "twitter:image") {
-                        // friendly label similar to OG
+                        // prefer siteName -> pageTitle -> host (no wrapper)
                         let siteName = Self.extractMetaContent(from: html, property: "og:site_name")
                         let pageTitle = Self.extractMetaContent(from: html, property: "og:title") ?? Self.matchFirst(html: html, pattern: "<title[^>]*>([\\s\\S]*?)<\\/title>")
                         let host = finalURL.host ?? URL(string: link.url)?.host
-                        let label: String
-                        if let s = siteName, !s.isEmpty {
-                            label = "サイト画像（\(s)）"
-                        } else if let t = pageTitle, !t.isEmpty {
-                            label = "ページ画像（\(t)）"
-                        } else if let h = host {
-                            label = "サイト画像（\(h)）"
-                        } else {
-                            label = "サイト画像"
-                        }
+                        let label = siteName ?? pageTitle ?? host ?? ""
+                        let displayLabel = label.trimmingCharacters(in: .whitespacesAndNewlines)
                         await MainActor.run {
                             updated[idx].previewImageURL = tw
-                            updated[idx].previewImageSource = label
+                            updated[idx].previewImageSource = displayLabel
                             self.extractedLinks = updated
                         }
-                        print("✅ Found twitter:image for \(link.url): \(tw) (label: \(label))")
+                        print("✅ Found twitter:image for \(link.url): \(tw) (label: \(displayLabel))")
                         fetched += 1
                         continue
                     }
@@ -267,7 +251,8 @@ class LineMessageService: ObservableObject {
                     if let (lat, lon) = Self.extractCoordinates(from: finalStr) {
                         // OpenStreetMap の静的マップを利用
                         let sm = "https://staticmap.openstreetmap.de/staticmap.php?center=\(lat),\(lon)&zoom=15&size=600x300&markers=\(lat),\(lon),red-pushpin"
-                        let label = "地図（\(String(format: "%.5f", lat)),\(String(format: "%.5f", lon))）"
+                        // default simple label for coordinate-only map
+                        let label = String(format: "地図 %.5f,%.5f", lat, lon)
                         await MainActor.run {
                             updated[idx].previewImageURL = sm
                             updated[idx].previewImageSource = label
@@ -284,13 +269,13 @@ class LineMessageService: ObservableObject {
                             print("🔎 Found q= param, trying geocode: \(decoded)")
                                 if let (glat, glon) = try? await Self.geocodeAddressWithNominatim(address: decoded) {
                                 let sm = "https://staticmap.openstreetmap.de/staticmap.php?center=\(glat),\(glon)&zoom=15&size=600x300&markers=\(glat),\(glon),red-pushpin"
-                                let label = "地図（\(decoded)）"
+                                let placeName = Self.formatPlaceDisplayName(decoded)
                                 await MainActor.run {
                                     updated[idx].previewImageURL = sm
-                                    updated[idx].previewImageSource = label
+                                    updated[idx].previewImageSource = placeName
                                     self.extractedLinks = updated
                                 }
-                                print("🗺️ Generated static map via geocoding for \(link.url) -> \(sm) (label: \(label))")
+                                print("🗺️ Generated static map via geocoding for \(link.url) -> \(sm) (label: \(placeName))")
                                 fetched += 1
                                 continue
                             } else {
@@ -300,13 +285,13 @@ class LineMessageService: ObservableObject {
                                 print("🔎 Falling back to image search for: \(placeQuery)")
                                 if let imageUrl = try? await Self.searchImageForPlace(placeQuery, baseURL: self.baseURL) {
                                     if !imageUrl.isEmpty {
-                                        let label = "検索画像（\(placeQuery)）"
+                                        let placeName = Self.formatPlaceDisplayName(placeQuery)
                                         await MainActor.run {
                                             updated[idx].previewImageURL = imageUrl
-                                            updated[idx].previewImageSource = label
+                                            updated[idx].previewImageSource = placeName
                                             self.extractedLinks = updated
                                         }
-                                        print("🖼️ Got image from search for \(placeQuery): \(imageUrl) (label: \(label))")
+                                        print("🖼️ Got image from search for \(placeQuery): \(imageUrl) (label: \(placeName))")
                                         fetched += 1
                                         continue
                                     } else {
@@ -434,6 +419,33 @@ class LineMessageService: ObservableObject {
     let parts = s.components(separatedBy: CharacterSet(charactersIn: " ,")).filter { !$0.isEmpty }
     let take = parts.prefix(4)
     return take.joined(separator: " ")
+    }
+
+    // Simplify place/address strings for display: remove postal codes and leading numeric tokens
+    static func formatPlaceDisplayName(_ raw: String) -> String {
+        var s = raw
+        // remove postal mark and postal codes
+        s = s.replacingOccurrences(of: "〒", with: "")
+        s = s.replacingOccurrences(of: "[0-9]{3}-?[0-9]{4}", with: "", options: .regularExpression)
+        // if string contains parentheses or commas, take main part before them
+        if let idx = s.firstIndex(of: "(") { s = String(s[..<idx]) }
+        if let idx2 = s.firstIndex(of: ",") { s = String(s[..<idx2]) }
+        // remove extraneous whitespace and tokens like "住所:"
+        s = s.replacingOccurrences(of: "住所", with: "")
+        s = s.trimmingCharacters(in: .whitespacesAndNewlines)
+        // split by spaces and punctuation, prefer the last 2-3 tokens which often contain place name
+        let tokens = s.components(separatedBy: CharacterSet(charactersIn: " /,、　"))
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+        if tokens.isEmpty { return s }
+        // if last token is numbers, drop it
+        let tail = tokens.suffix(3)
+        // prefer tokens that are not pure digits
+        let filtered = tail.filter { token in
+            return token.range(of: "^[0-9]+$", options: .regularExpression) == nil
+        }
+        let result = filtered.isEmpty ? String(tail.joined(separator: " ")) : String(filtered.joined(separator: " "))
+        return result
     }
 
     // Call server-side image search endpoint and return first image URL (or nil)
