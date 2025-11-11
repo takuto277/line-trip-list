@@ -360,9 +360,9 @@ class LineMessageService: ObservableObject {
 
         // if not enough candidates and query provided, try server-side image search
         if result.count < max, let q = query, !q.isEmpty {
-            if let imageUrl = try? await Self.searchImageForPlace(q, baseURL: self.baseURL), let iu = imageUrl, !iu.isEmpty {
-                if !result.contains(iu) {
-                    result.append(iu)
+            if let imageUrl = try? await Self.searchImageForPlace(q, baseURL: self.baseURL), !imageUrl.isEmpty {
+                if !result.contains(imageUrl) {
+                    result.append(imageUrl)
                 }
             }
         }
