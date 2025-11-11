@@ -54,6 +54,25 @@ struct ContentView: View {
                 }
                 
                 // LINE メッセージセクション
+                // 共有リンクセクション
+                GroupBox("Shared Links") {
+                    VStack(alignment: .leading, spacing: 8) {
+                        if lineService.extractedLinks.isEmpty {
+                            Text("共有されたリンクはまだありません")
+                                .foregroundColor(.secondary)
+                                .frame(height: 60)
+                        } else {
+                            ForEach(lineService.extractedLinks) { link in
+                                LinkRowView(link: link)
+                                    .padding(.vertical, 4)
+                            }
+                        }
+                    }
+                    .padding(.vertical, 6)
+                }
+
+// LinkRowView is defined at file scope below to avoid ViewBuilder declaration issues
+
                 GroupBox("LINE Messages") {
                     VStack(alignment: .leading, spacing: 10) {
                         HStack {
@@ -230,4 +249,80 @@ struct ContentView: View {
 #Preview {
     ContentView()
         .modelContainer(for: Item.self, inMemory: true)
+}
+
+// LinkRowView: extracted to top-level to ease compiler type-checking
+struct LinkRowView: View {
+    let link: LineMessageService.LinkItem
+
+    var body: some View {
+        HStack {
+            if let preview = link.previewImageURL, let pu = URL(string: preview) {
+                AsyncImage(url: pu) { phase in
+                    switch phase {
+                    case .empty:
+                        ProgressView()
+                            .frame(width: 60, height: 60)
+                    case .success(let image):
+                        image
+                            .resizable()
+                            .scaledToFill()
+                            .frame(width: 60, height: 60)
+                            .clipped()
+                    case .failure:
+                        Image(systemName: "photo")
+                            .frame(width: 60, height: 60)
+                    @unknown default:
+                        EmptyView()
+                    }
+                }
+            } else if link.isImage, let u = URL(string: link.url) {
+                AsyncImage(url: u) { phase in
+                    switch phase {
+                    case .empty:
+                        ProgressView()
+                            .frame(width: 60, height: 60)
+                    case .success(let image):
+                        image
+                            .resizable()
+                            .scaledToFill()
+                            .frame(width: 60, height: 60)
+                            .clipped()
+                    case .failure:
+                        Image(systemName: "photo")
+                            .frame(width: 60, height: 60)
+                    @unknown default:
+                        EmptyView()
+                    }
+                }
+            } else {
+                Rectangle()
+                    .fill(Color.clear)
+                    .frame(width: 60, height: 60)
+            }
+
+            VStack(alignment: .leading) {
+                Text(link.url)
+                    .font(.caption)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                Text(link.sourceUser)
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+            }
+            Spacer()
+            Button(action: {
+                if let u = URL(string: link.url) {
+                    UIApplication.shared.open(u)
+                }
+            }) {
+                Image(systemName: "safari")
+            }
+        }
+        .contextMenu {
+            Button("Copy URL") {
+                UIPasteboard.general.string = link.url
+            }
+        }
+    }
 }

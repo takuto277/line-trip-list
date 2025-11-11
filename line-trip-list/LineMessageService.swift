@@ -34,6 +34,8 @@ struct MessagesResponse: Codable {
 // LINE Webhook受信用のサービス
 class LineMessageService: ObservableObject {
     @Published var receivedMessages: [LineMessage] = []
+    // 抽出したリンクの一覧
+    @Published var extractedLinks: [LinkItem] = []
     @Published var isConnected = false
     @Published var isLoading = false
     
@@ -87,7 +89,13 @@ class LineMessageService: ObservableObject {
 
                 await MainActor.run {
                     self.receivedMessages = decodedMessages.sorted { $0.timestamp > $1.timestamp }
+                    // メッセージからリンクを抽出
+                    self.extractedLinks = Self.extractLinks(from: self.receivedMessages)
                     self.isLoading = false
+                }
+                // extractedLinks の Content-Type 検証（並列）
+                Task {
+                    await self.validateImageLinks()
                 }
             } else {
                 await MainActor.run {
@@ -100,6 +108,154 @@ class LineMessageService: ObservableObject {
                 self.isLoading = false
             }
         }
+    }
+
+    // メッセージ内の URL を抽出するヘルパー
+    struct LinkItem: Identifiable, Codable {
+        let id = UUID()
+        let url: String
+        let sourceUser: String
+        let timestamp: Int64
+        var isImage: Bool = false
+        var previewImageURL: String? = nil
+    }
+
+    static func extractLinks(from messages: [LineMessage]) -> [LinkItem] {
+        var items: [LinkItem] = []
+        let detector = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.link.rawValue)
+        for msg in messages {
+            if let linkDetector = detector {
+                let text = msg.message
+                let matches = linkDetector.matches(in: text, options: [], range: NSRange(location: 0, length: text.utf16.count))
+                for m in matches {
+                    if let range = Range(m.range, in: text), let url = URL(string: String(text[range])) {
+                        var item = LinkItem(url: url.absoluteString, sourceUser: msg.userName, timestamp: msg.timestamp)
+                        // 簡易判定: 拡張子が画像系なら isImage を true にする
+                        let ext = url.pathExtension.lowercased()
+                        if !ext.isEmpty {
+                            let imageExts: Set<String> = ["png","jpg","jpeg","gif","webp","bmp","heic","heif"]
+                            if imageExts.contains(ext) {
+                                item.isImage = true
+                            }
+                        }
+                        // debug
+                        print("🔗 Detected link: \(item.url) (isImage initial: \(item.isImage)) from user: \(item.sourceUser)")
+                        items.append(item)
+                    }
+                }
+            }
+        }
+        return items
+    }
+
+    // 抽出後に各 URL の Content-Type を HEAD リクエストで確認し、画像なら isImage を true にする
+    func validateImageLinks() async {
+        var updated = self.extractedLinks
+        for (idx, link) in updated.enumerated() {
+            if link.isImage { continue }
+            guard let url = URL(string: link.url) else { continue }
+            var req = URLRequest(url: url)
+            req.httpMethod = "HEAD"
+            req.timeoutInterval = 5
+            do {
+                let (_, resp) = try await URLSession.shared.data(for: req)
+                if let http = resp as? HTTPURLResponse, let ct = http.value(forHTTPHeaderField: "Content-Type") {
+                    if ct.starts(with: "image/") {
+                        await MainActor.run {
+                            updated[idx].isImage = true
+                            self.extractedLinks = updated
+                        }
+                        print("🖼️ HEAD indicates image for \(link.url) — Content-Type: \(ct)")
+                    } else {
+                        print("ℹ️ HEAD Content-Type for \(link.url): \(ct)")
+                    }
+                }
+            } catch {
+                print("⚠️ HEAD request failed for \(link.url): \(error)")
+                // HEAD が弾かれることはある。何もしない。
+            }
+        }
+        // HEAD 検証後、OG画像を取得（最大 N 件）
+        Task {
+            await fetchPreviewImages(maxFetch: 6)
+        }
+    }
+
+    // ページを GET して og:image / twitter:image を抽出する（クライアント側で完結）
+    func fetchPreviewImages(maxFetch: Int = 6) async {
+        var updated = self.extractedLinks
+        var fetched = 0
+        for (idx, link) in updated.enumerated() {
+            if fetched >= maxFetch { break }
+            if link.previewImageURL != nil || link.isImage { continue }
+            guard let url = URL(string: link.url) else { continue }
+            print("🌐 GET page to look for OG image: \(url.absoluteString)")
+            var req = URLRequest(url: url)
+            req.httpMethod = "GET"
+            req.timeoutInterval = 6
+            req.setValue("text/html,application/xhtml+xml", forHTTPHeaderField: "Accept")
+            do {
+                let (data, resp) = try await URLSession.shared.data(for: req)
+                guard let http = resp as? HTTPURLResponse, http.statusCode == 200 else { continue }
+                if let html = String(data: data, encoding: .utf8) {
+                    // try to find og:image or twitter:image
+                    if let og = Self.extractMetaContent(from: html, property: "og:image") {
+                        await MainActor.run {
+                            updated[idx].previewImageURL = og
+                            self.extractedLinks = updated
+                        }
+                        print("✅ Found og:image for \(link.url): \(og)")
+                        fetched += 1
+                        continue
+                    } else {
+                        print("ℹ️ No og:image found in HTML for \(link.url)")
+                    }
+                    if let tw = Self.extractMetaContent(from: html, name: "twitter:image") {
+                        await MainActor.run {
+                            updated[idx].previewImageURL = tw
+                            self.extractedLinks = updated
+                        }
+                        print("✅ Found twitter:image for \(link.url): \(tw)")
+                        fetched += 1
+                        continue
+                    }
+                }
+            } catch {
+                print("⚠️ GET page failed for \(link.url): \(error)")
+                // ignore failures
+            }
+        }
+    }
+
+    // HTML から meta[property="..."] の content を抽出するユーティリティ
+    static func extractMetaContent(from html: String, property: String) -> String? {
+        // property 属性版
+        let pattern = "<meta[^>]+property=[\"']" + NSRegularExpression.escapedPattern(for: property) + "[\"'][^>]+content=[\"']([^\"']+)[\"'][^>]*>"
+        if let v = matchFirst(html: html, pattern: pattern) { return v }
+        return nil
+    }
+
+    static func extractMetaContent(from html: String, name: String) -> String? {
+        // name 属性版
+        let pattern = "<meta[^>]+name=[\"']" + NSRegularExpression.escapedPattern(for: name) + "[\"'][^>]+content=[\"']([^\"']+)[\"'][^>]*>"
+        if let v = matchFirst(html: html, pattern: pattern) { return v }
+        return nil
+    }
+
+    static func matchFirst(html: String, pattern: String) -> String? {
+        do {
+            let regex = try NSRegularExpression(pattern: pattern, options: [.caseInsensitive])
+            let ns = html as NSString
+            if let m = regex.firstMatch(in: html, options: [], range: NSRange(location: 0, length: ns.length)) {
+                if m.numberOfRanges >= 2 {
+                    let r = m.range(at: 1)
+                    return ns.substring(with: r)
+                }
+            }
+        } catch {
+            return nil
+        }
+        return nil
     }
     
     // 同期版（SwiftUIから呼び出し用）
