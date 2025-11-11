@@ -311,6 +311,75 @@ class LineMessageService: ObservableObject {
         }
     }
 
+    // Fetch up to `max` image candidates for a given LinkItem.
+    // Strategy: GET the page, extract og:image and <img src=> URLs (absolute), dedupe and return up to max.
+    // If a query is provided and candidates are few, call server-side searchImageForPlace(query) to add a candidate.
+    func fetchImageCandidates(for link: LinkItem, query: String? = nil, max: Int = 4) async -> [String] {
+        var candidates: [String] = []
+        guard let pageURL = URL(string: link.url) else { return candidates }
+        var req = URLRequest(url: pageURL)
+        req.httpMethod = "GET"
+        req.timeoutInterval = 6
+        req.setValue("text/html,application/xhtml+xml", forHTTPHeaderField: "Accept")
+        do {
+            let (data, resp) = try await URLSession.shared.data(for: req)
+            guard let http = resp as? HTTPURLResponse, http.statusCode == 200 else { return candidates }
+            guard let html = String(data: data, encoding: .utf8) else { return candidates }
+            // 1) og:image and twitter:image
+            if let og = Self.extractMetaContent(from: html, property: "og:image") {
+                if let abs = Self.absoluteUrl(from: og, base: pageURL) { candidates.append(abs) }
+            }
+            if let tw = Self.extractMetaContent(from: html, name: "twitter:image") {
+                if let abs = Self.absoluteUrl(from: tw, base: pageURL) { candidates.append(abs) }
+            }
+            // 2) all <img src=> entries (simplified regex)
+            let imgPattern = "<img[^>]+src=[\"']([^\"']+)[\"'][^>]*>"
+            if let regex = try? NSRegularExpression(pattern: imgPattern, options: [.caseInsensitive]) {
+                let ns = html as NSString
+                let matches = regex.matches(in: html, options: [], range: NSRange(location: 0, length: ns.length))
+                for m in matches {
+                    if m.numberOfRanges >= 2 {
+                        let raw = ns.substring(with: m.range(at: 1))
+                        if let abs = Self.absoluteUrl(from: raw, base: pageURL) {
+                            candidates.append(abs)
+                        }
+                    }
+                }
+            }
+        } catch {
+            print("⚠️ fetchImageCandidates GET failed for \(link.url): \(error)")
+        }
+
+        // dedupe while preserving order
+        var seen = Set<String>()
+        let deduped = candidates.filter { url in
+            if seen.contains(url) { return false }
+            seen.insert(url); return true
+        }
+        var result = Array(deduped.prefix(max))
+
+        // if not enough candidates and query provided, try server-side image search
+        if result.count < max, let q = query, !q.isEmpty {
+            if let imageUrl = try? await Self.searchImageForPlace(q, baseURL: self.baseURL), let iu = imageUrl, !iu.isEmpty {
+                if !result.contains(iu) {
+                    result.append(iu)
+                }
+            }
+        }
+
+        return Array(result.prefix(max))
+    }
+
+    // Convert possibly relative URL to absolute using base page URL
+    static func absoluteUrl(from raw: String, base: URL) -> String? {
+        if let u = URL(string: raw), u.scheme != nil { return u.absoluteString }
+        // handle protocol-relative URLs
+        if raw.hasPrefix("//"), let u = URL(string: base.scheme! + ":" + raw) { return u.absoluteString }
+        // relative path
+        if let u = URL(string: raw, relativeTo: base)?.absoluteURL { return u.absoluteString }
+        return nil
+    }
+
     // URL から指定クエリパラメータの値を取り出す（簡易）
     static func extractQueryParam(from urlString: String, name: String) -> String? {
         guard let url = URL(string: urlString) else { return nil }
