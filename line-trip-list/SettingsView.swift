@@ -4,6 +4,7 @@ struct SettingsView: View {
     @EnvironmentObject var authService: AuthenticationService
     @State private var displayNameOverride: String = UserDefaults.standard.string(forKey: "displayNameOverride") ?? ""
     @State private var isLoggedIn: Bool = false
+    @State private var showLoginSheet: Bool = false
 
     var body: some View {
         NavigationStack {
@@ -19,7 +20,11 @@ struct SettingsView: View {
 
                         Button("Logout") { authService.logout() }
                     } else {
-                        Button("Login with LINE") { authService.startLogin() }
+                        Button("Login with LINE") { showLoginSheet = true }
+                            .sheet(isPresented: $showLoginSheet) {
+                                LoginView()
+                                    .environmentObject(authService)
+                            }
                     }
                 }
 
