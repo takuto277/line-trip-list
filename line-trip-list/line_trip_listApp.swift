@@ -22,19 +22,12 @@ struct line_trip_listApp: App {
 
     var body: some Scene {
         WindowGroup {
-            Group {
-                if authService.isAuthenticated {
-                    ContentView()
-                        .environmentObject(authService)
-                } else {
-                    LoginView()
-                        .environmentObject(authService)
+            RootTabView()
+                .environmentObject(authService)
+                .onOpenURL { url in
+                    // LINE SDK handles the callback automatically
+                    _ = LoginManager.shared.application(.shared, open: url)
                 }
-            }
-            .onOpenURL { url in
-                // LINE SDK handles the callback automatically
-                _ = LoginManager.shared.application(.shared, open: url)
-            }
         }
         .modelContainer(sharedModelContainer)
     }
