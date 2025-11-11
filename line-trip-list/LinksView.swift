@@ -9,7 +9,6 @@ struct LinksView: View {
     @State private var showCandidatePicker: Bool = false
     @State private var candidateImages: [String] = []
     @State private var candidateSearchQuery: String = ""
-    @State private var _candidateImages: [String] = []
 
     var body: some View {
         NavigationStack {
@@ -39,7 +38,7 @@ struct LinksView: View {
                                                 Task {
                                                     let candidates = await lineService.fetchImageCandidates(for: link, query: link.previewImageSource ?? "")
                                                     await MainActor.run {
-                                                        self._candidateImages = candidates
+                                                        self.candidateImages = candidates
                                                         self.showCandidatePicker = true
                                                     }
                                                 }
@@ -171,39 +170,12 @@ struct LinksView: View {
                             image.resizable().scaledToFit()
                                 .frame(maxWidth: .infinity)
                                 .aspectRatio(16.0/9.0, contentMode: .fit)
-                                .onLongPressGesture {
-                                    // open change image sheet
-                                    editingLinkID = link.id
-                                    editingImageURL = link.previewImageURL ?? ""
-                                    showEditImageSheet = true
-                                }
-                                .contextMenu {
-                                    Button("Copy URL") { UIPasteboard.general.string = link.url }
-                                    Button("画像を変更") {
-                                        editingLinkID = link.id
-                                        editingImageURL = link.previewImageURL ?? ""
-                                        showEditImageSheet = true
-                                    }
-                                }
                         case .failure:
                             Image(systemName: "photo")
                                 .resizable()
                                 .scaledToFit()
                                 .frame(maxWidth: .infinity)
                                 .aspectRatio(16.0/9.0, contentMode: .fit)
-                                .onLongPressGesture {
-                                    editingLinkID = link.id
-                                    editingImageURL = link.previewImageURL ?? ""
-                                    showEditImageSheet = true
-                                }
-                                .contextMenu {
-                                    Button("Copy URL") { UIPasteboard.general.string = link.url }
-                                    Button("画像を変更") {
-                                        editingLinkID = link.id
-                                        editingImageURL = link.previewImageURL ?? ""
-                                        showEditImageSheet = true
-                                    }
-                                }
                         @unknown default:
                             EmptyView()
                         }
@@ -215,34 +187,8 @@ struct LinksView: View {
                             ProgressView().frame(maxWidth: .infinity).aspectRatio(16.0/9.0, contentMode: .fit)
                         case .success(let image):
                             image.resizable().scaledToFit().frame(maxWidth: .infinity).aspectRatio(16.0/9.0, contentMode: .fit)
-                                .onLongPressGesture {
-                                    editingLinkID = link.id
-                                    editingImageURL = link.previewImageURL ?? link.url
-                                    showEditImageSheet = true
-                                }
-                                .contextMenu {
-                                    Button("Copy URL") { UIPasteboard.general.string = link.url }
-                                    Button("画像を変更") {
-                                        editingLinkID = link.id
-                                        editingImageURL = link.previewImageURL ?? link.url
-                                        showEditImageSheet = true
-                                    }
-                                }
                         case .failure:
                             Image(systemName: "photo").resizable().scaledToFit().frame(maxWidth: .infinity).aspectRatio(16.0/9.0, contentMode: .fit)
-                                .onLongPressGesture {
-                                    editingLinkID = link.id
-                                    editingImageURL = link.previewImageURL ?? ""
-                                    showEditImageSheet = true
-                                }
-                                .contextMenu {
-                                    Button("Copy URL") { UIPasteboard.general.string = link.url }
-                                    Button("画像を変更") {
-                                        editingLinkID = link.id
-                                        editingImageURL = link.previewImageURL ?? ""
-                                        showEditImageSheet = true
-                                    }
-                                }
                         @unknown default:
                             EmptyView()
                         }
