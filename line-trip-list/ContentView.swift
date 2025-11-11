@@ -38,13 +38,13 @@ struct ContentView: View {
                                         print("🔁 Update pressed — using userId: \(userId)")
                                         await lineService.fetchMessages(lineId: userId)
                                         await lineService.persistMessages(into: modelContext)
-                                        // add discovered userIds to overrides list if missing
-                                        nameStore.addDiscoveredUserIds(lineService.receivedMessages.map { $0.userId })
+                                        // add discovered userIds (fallback to userName) to overrides list if missing
+                                        nameStore.addDiscoveredUserIds(lineService.receivedMessages.map { $0.userId ?? $0.userName })
                                     } else {
                                         print("🔁 Update pressed — no userId, fetching all")
                                         await lineService.fetchMessages()
                                         await lineService.persistMessages(into: modelContext)
-                                        nameStore.addDiscoveredUserIds(lineService.receivedMessages.map { $0.userId })
+                                        nameStore.addDiscoveredUserIds(lineService.receivedMessages.map { $0.userId ?? $0.userName })
                                     }
                                 }
                             }
