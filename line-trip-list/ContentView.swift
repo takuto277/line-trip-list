@@ -10,7 +10,7 @@ import SwiftData
 
 struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
-    @Query private var items: [Item]
+    // removed items query - Item list not needed
     @StateObject private var lineService = LineMessageService()
     @EnvironmentObject var authService: AuthenticationService
     @EnvironmentObject var nameStore: DisplayNameStore
@@ -121,31 +121,10 @@ struct ContentView: View {
                     }
                 }
                 
-                // 既存のアイテムリスト
-                GroupBox("Items") {
-                    List {
-                        ForEach(items) { item in
-                            NavigationLink {
-                                Text("Item at \(item.timestamp, format: Date.FormatStyle(date: .numeric, time: .standard))")
-                            } label: {
-                                Text(item.timestamp, format: Date.FormatStyle(date: .numeric, time: .standard))
-                            }
-                        }
-                        .onDelete(perform: deleteItems)
-                    }
-                }
+                // Items section removed per request
             }
             .padding()
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    EditButton()
-                }
-                ToolbarItem {
-                    Button(action: addItem) {
-                        Label("Add Item", systemImage: "plus")
-                    }
-                }
-            }
+            // toolbar trimmed (no Item controls)
         } detail: {
             Text("Select an item")
         }
@@ -211,24 +190,16 @@ struct ContentView: View {
     }
 
     private func addItem() {
-        withAnimation {
-            let newItem = Item(timestamp: Date())
-            modelContext.insert(newItem)
-        }
+        // no-op: item list removed
     }
 
     private func deleteItems(offsets: IndexSet) {
-        withAnimation {
-            for index in offsets {
-                modelContext.delete(items[index])
-            }
-        }
+        // no-op: item list removed
     }
 }
 
 #Preview {
     ContentView()
-        .modelContainer(for: Item.self, inMemory: true)
 }
 
 // LinkRowView: extracted to top-level to ease compiler type-checking
