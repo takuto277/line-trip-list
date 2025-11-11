@@ -17,18 +17,8 @@ struct line_trip_listApp: App {
         LoginManager.shared.setup(channelID: Config.LoginAPI.channelID, universalLinkURL: nil)
     }
     
-    var sharedModelContainer: ModelContainer = {
-        let schema = Schema([
-            Item.self,
-        ])
-        let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
-
-        do {
-            return try ModelContainer(for: schema, configurations: [modelConfiguration])
-        } catch {
-            fatalError("Could not create ModelContainer: \(error)")
-        }
-    }()
+    // Use shared ModelContainer from Persistence.swift which includes our SwiftData models
+    var sharedModelContainer: ModelContainer = Persistence.shared
 
     var body: some Scene {
         WindowGroup {

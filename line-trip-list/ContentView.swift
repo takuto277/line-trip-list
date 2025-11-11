@@ -84,9 +84,11 @@ struct ContentView: View {
                                     if let userId = authService.currentUser?.userId {
                                         print("🔁 Update pressed — using userId: \(userId)")
                                         await lineService.fetchMessages(lineId: userId)
+                                        await lineService.persistMessages(into: modelContext)
                                     } else {
                                         print("🔁 Update pressed — no userId, fetching all")
                                         await lineService.fetchMessages()
+                                        await lineService.persistMessages(into: modelContext)
                                     }
                                 }
                             }
@@ -187,8 +189,10 @@ struct ContentView: View {
             Task {
                 if let userId = authService.currentUser?.userId {
                     await lineService.fetchMessages(lineId: userId)
+                    await lineService.persistMessages(into: modelContext)
                 } else {
                     await lineService.fetchMessages()
+                    await lineService.persistMessages(into: modelContext)
                 }
             }
         }
@@ -198,8 +202,10 @@ struct ContentView: View {
             Task {
                 if let id = newUserId {
                     await lineService.fetchMessages(lineId: id)
+                    await lineService.persistMessages(into: modelContext)
                 } else {
                     await lineService.fetchMessages()
+                    await lineService.persistMessages(into: modelContext)
                 }
             }
         }

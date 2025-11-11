@@ -46,6 +46,14 @@ class LineMessageService: ObservableObject {
     init() {
         fetchMessages() // 起動時にメッセージを取得
     }
+
+    // Persist fetched messages into SwiftData ModelContext
+    func persistMessages(into context: any ModelContext) async {
+        await MainActor.run {
+            // convert and save using Persistence helper
+            Persistence.saveMessageDTOs(self.receivedMessages, into: context as! ModelContext)
+        }
+    }
     
     // メッセージを取得
     // lineId: 任意。指定するとその user_id に一致するメッセージのみ取得する
