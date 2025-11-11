@@ -14,7 +14,7 @@ final class DisplayNameStore: ObservableObject {
 
     func load() {
         // load from SwiftData using Persistence helper
-        let context = ModelContext(container: Persistence.shared)
+    let context = ModelContext(Persistence.shared)
         let users = Persistence.fetchAllUserDisplayNames(from: context)
         var dict: [String: String] = [:]
         for u in users {
@@ -34,13 +34,13 @@ final class DisplayNameStore: ObservableObject {
             overrides[userId] = name
         }
         // persist to SwiftData
-    let context = ModelContext(container: Persistence.shared)
+    let context = ModelContext(Persistence.shared)
     Persistence.upsertUserDisplayName(userId: userId, displayName: name, into: context)
     }
 
     func removeOverride(for userId: String) {
         overrides.removeValue(forKey: userId)
-    let context = ModelContext(container: Persistence.shared)
+    let context = ModelContext(Persistence.shared)
         // upsert empty -> remove
         if let existing = (try? context.fetch(FetchDescriptor<UserDisplayName>()).first(where: { $0.userId == userId })) {
             context.delete(existing)
@@ -59,7 +59,7 @@ final class DisplayNameStore: ObservableObject {
 
     // Add discovered userIds if not present in overrides (persist as empty display name)
     func addDiscoveredUserIds(_ userIds: [String]) {
-        let context = ModelContext(container: Persistence.shared)
+    let context = ModelContext(Persistence.shared)
         var changed = false
         for uidRaw in userIds {
             let uid = uidRaw.trimmingCharacters(in: .whitespacesAndNewlines)
