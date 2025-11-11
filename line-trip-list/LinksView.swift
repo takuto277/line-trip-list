@@ -41,11 +41,18 @@ struct LinksView: View {
     @ViewBuilder
     private func LinkCard(link: LineMessageService.LinkItem) -> some View {
         VStack(spacing: 8) {
-            // top: submitter name
-            Text(nameStore.displayName(for: link.sourceUserId, fallback: link.sourceUser))
-                .font(.caption)
-                .foregroundColor(.secondary)
-                .frame(maxWidth: .infinity, alignment: .leading)
+            // top: preview image source or submitter name
+            if let src = link.previewImageSource, !src.isEmpty {
+                Text(src)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            } else {
+                Text(nameStore.displayName(for: link.sourceUserId, fallback: link.sourceUser))
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
 
             // middle: large image (or placeholder)
             ZStack {
