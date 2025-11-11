@@ -54,16 +54,19 @@ struct LinksView: View {
                         switch phase {
                         case .empty:
                             ProgressView()
-                                .frame(maxWidth: .infinity, minHeight: 140)
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 140)
                         case .success(let image):
                             image.resizable().scaledToFill()
-                                .frame(maxWidth: .infinity, minHeight: 140)
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 140)
                                 .clipped()
                         case .failure:
                             Image(systemName: "photo")
                                 .resizable()
                                 .scaledToFit()
-                                .frame(maxWidth: .infinity, minHeight: 140)
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 140)
                         @unknown default:
                             EmptyView()
                         }
@@ -72,19 +75,17 @@ struct LinksView: View {
                     AsyncImage(url: url) { phase in
                         switch phase {
                         case .empty:
-                            ProgressView().frame(maxWidth: .infinity, minHeight: 140)
+                            ProgressView().frame(maxWidth: .infinity).frame(height: 140)
                         case .success(let image):
-                            image.resizable().scaledToFill()
-                                .frame(maxWidth: .infinity, minHeight: 140)
-                                .clipped()
+                            image.resizable().scaledToFill().frame(maxWidth: .infinity).frame(height: 140).clipped()
                         case .failure:
-                            Image(systemName: "photo").resizable().scaledToFit().frame(maxWidth: .infinity, minHeight: 140)
+                            Image(systemName: "photo").resizable().scaledToFit().frame(maxWidth: .infinity).frame(height: 140)
                         @unknown default:
                             EmptyView()
                         }
                     }
                 } else {
-                    Rectangle().fill(Color(UIColor.systemGray5)).frame(maxWidth: .infinity, minHeight: 140)
+                    Rectangle().fill(Color(UIColor.systemGray5)).frame(maxWidth: .infinity).frame(height: 140)
                 }
             }
 
@@ -96,6 +97,7 @@ struct LinksView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding(8)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
