@@ -155,7 +155,7 @@ struct LinksView: View {
             Text(titleText)
                 .font(.system(size: 14, weight: .bold))
                 .foregroundColor(.primary)
-                .lineLimit(1)
+                .lineLimit(2)
                 .truncationMode(.tail)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
