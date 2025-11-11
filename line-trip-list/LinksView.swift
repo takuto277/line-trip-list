@@ -153,8 +153,10 @@ struct LinksView: View {
             // top: title (preview source or submitter)
             let titleText = (link.previewImageSource?.isEmpty == false) ? link.previewImageSource! : link.sourceUser
             Text(titleText)
-                .font(.system(size: 16, weight: .bold))
+                .font(.system(size: 14, weight: .bold))
                 .foregroundColor(.primary)
+                .lineLimit(1)
+                .truncationMode(.tail)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
             // middle: large image (or placeholder)
@@ -167,9 +169,10 @@ struct LinksView: View {
                                 .frame(maxWidth: .infinity)
                                 .aspectRatio(16.0/9.0, contentMode: .fit)
                         case .success(let image):
-                            image.resizable().scaledToFit()
+                            image.resizable().scaledToFill()
                                 .frame(maxWidth: .infinity)
-                                .aspectRatio(16.0/9.0, contentMode: .fit)
+                                .frame(height: 160)
+                                .clipped()
                         case .failure:
                             Image(systemName: "photo")
                                 .resizable()
@@ -186,7 +189,7 @@ struct LinksView: View {
                         case .empty:
                             ProgressView().frame(maxWidth: .infinity).aspectRatio(16.0/9.0, contentMode: .fit)
                         case .success(let image):
-                            image.resizable().scaledToFit().frame(maxWidth: .infinity).aspectRatio(16.0/9.0, contentMode: .fit)
+                            image.resizable().scaledToFill().frame(maxWidth: .infinity).frame(height: 160).clipped()
                         case .failure:
                             Image(systemName: "photo").resizable().scaledToFit().frame(maxWidth: .infinity).aspectRatio(16.0/9.0, contentMode: .fit)
                         @unknown default:
@@ -194,7 +197,7 @@ struct LinksView: View {
                         }
                     }
                 } else {
-                    Rectangle().fill(Color(UIColor.systemGray5)).frame(maxWidth: .infinity).aspectRatio(16.0/9.0, contentMode: .fit)
+                    Rectangle().fill(Color(UIColor.systemGray5)).frame(maxWidth: .infinity).frame(height: 160)
                 }
             }
 
@@ -207,7 +210,7 @@ struct LinksView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding(8)
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity, minHeight: 260, maxHeight: 260, alignment: .top)
     }
 }
 
