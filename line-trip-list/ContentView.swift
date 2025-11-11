@@ -20,38 +20,8 @@ struct ContentView: View {
     var body: some View {
         NavigationSplitView {
             VStack {
-                // ユーザー情報ヘッダー
-                if let user = authService.currentUser {
-                    HStack {
-                        AsyncImage(url: URL(string: user.pictureUrl ?? "")) { image in
-                            image.resizable()
-                        } placeholder: {
-                            Image(systemName: "person.circle.fill")
-                                .resizable()
-                        }
-                        .frame(width: 40, height: 40)
-                        .clipShape(Circle())
-                        
-                        VStack(alignment: .leading) {
-                            Text(user.displayName)
-                                .font(.headline)
-                            Text(user.userId)
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-                        
-                        Spacer()
-                        
-                        Button("ログアウト") {
-                            authService.logout()
-                        }
-                        .foregroundColor(.red)
-                        .font(.caption)
-                    }
-                    .padding()
-                    .background(Color(.systemGray6))
-                    .cornerRadius(10)
-                }
+                // Header moved to Settings; keep a small spacer
+                Spacer().frame(height: 6)
                 
                 // LINE メッセージセクション
                 // 共有リンクセクション
@@ -260,6 +230,7 @@ struct ContentView: View {
 // LinkRowView: extracted to top-level to ease compiler type-checking
 struct LinkRowView: View {
     let link: LineMessageService.LinkItem
+    @EnvironmentObject var nameStore: DisplayNameStore
 
     var body: some View {
         HStack {
@@ -312,7 +283,7 @@ struct LinkRowView: View {
                     .font(.caption)
                     .lineLimit(1)
                     .truncationMode(.middle)
-                Text(link.sourceUser)
+                Text(nameStore.displayName(for: link.sourceUserId, fallback: link.sourceUser))
                     .font(.caption2)
                     .foregroundColor(.secondary)
             }

@@ -2,8 +2,7 @@ import SwiftUI
 
 struct SettingsView: View {
     @EnvironmentObject var authService: AuthenticationService
-    @State private var displayNameOverride: String = UserDefaults.standard.string(forKey: "displayNameOverride") ?? ""
-    @State private var isLoggedIn: Bool = false
+    @EnvironmentObject var nameStore: DisplayNameStore
     @State private var showLoginSheet: Bool = false
 
     var body: some View {
@@ -12,13 +11,24 @@ struct SettingsView: View {
                 Section(header: Text("LINE Login")) {
                     if let user = authService.currentUser {
                         HStack {
-                            Text("Status")
-                            Spacer()
-                            Text("Logged in as \(user.displayName)")
-                                .foregroundColor(.secondary)
-                        }
+                            AsyncImage(url: URL(string: user.pictureUrl ?? "")) { img in
+                                img.resizable()
+                            } placeholder: {
+                                Image(systemName: "person.circle.fill")
+                                    .resizable()
+                            }
+                            .frame(width:48,height:48)
+                            .clipShape(Circle())
 
-                        Button("Logout") { authService.logout() }
+                            VStack(alignment: .leading) {
+                                Text(user.displayName)
+                                Text(user.userId)
+                                    .font(.caption2)
+                                    .foregroundColor(.secondary)
+                            }
+                            Spacer()
+                            Button("Logout") { authService.logout() }
+                        }
                     } else {
                         Button("Login with LINE") { showLoginSheet = true }
                             .sheet(isPresented: $showLoginSheet) {
@@ -28,10 +38,17 @@ struct SettingsView: View {
                     }
                 }
 
-                Section(header: Text("Display name override")) {
-                    TextField("表示名を上書きする", text: $displayNameOverride)
-                    Button("保存") {
-                        UserDefaults.standard.set(displayNameOverride, forKey: "displayNameOverride")
+                Section(header: Text("Display name overrides")) {
+                    if nameStore.overrides.isEmpty {
+                        Text("No overrides set").foregroundColor(.secondary)
+                    } else {
+                        ForEach(nameStore.overrides.keys.sorted(), id: \ .self) { userId in
+                            HStack {
+                                Text(userId).font(.caption2)
+                                TextField("表示名", text: nameStore.binding(for: userId))
+                                    .textFieldStyle(RoundedBorderTextFieldStyle())
+                            }
+                        }
                     }
                 }
             }

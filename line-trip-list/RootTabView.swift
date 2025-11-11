@@ -4,6 +4,7 @@ import SwiftData
 struct RootTabView: View {
     @EnvironmentObject var authService: AuthenticationService
     @StateObject private var lineService = LineMessageService()
+    @StateObject private var nameStore = DisplayNameStore()
 
     var body: some View {
         TabView {
@@ -23,6 +24,7 @@ struct RootTabView: View {
                 }
         }
         .environmentObject(authService)
+        .environmentObject(nameStore)
     }
 }
 

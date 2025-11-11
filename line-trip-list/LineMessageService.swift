@@ -124,6 +124,7 @@ class LineMessageService: ObservableObject {
         let id = UUID()
         let url: String
         let sourceUser: String
+        let sourceUserId: String?
         let timestamp: Int64
         var isImage: Bool = false
         var previewImageURL: String? = nil
@@ -137,8 +138,8 @@ class LineMessageService: ObservableObject {
                 let text = msg.message
                 let matches = linkDetector.matches(in: text, options: [], range: NSRange(location: 0, length: text.utf16.count))
                 for m in matches {
-                    if let range = Range(m.range, in: text), let url = URL(string: String(text[range])) {
-                        var item = LinkItem(url: url.absoluteString, sourceUser: msg.userName, timestamp: msg.timestamp)
+                        if let range = Range(m.range, in: text), let url = URL(string: String(text[range])) {
+                        var item = LinkItem(url: url.absoluteString, sourceUser: msg.userName, sourceUserId: msg.userId, timestamp: msg.timestamp)
                         // 簡易判定: 拡張子が画像系なら isImage を true にする
                         let ext = url.pathExtension.lowercased()
                         if !ext.isEmpty {

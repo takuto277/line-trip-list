@@ -24,6 +24,7 @@ struct line_trip_listApp: App {
         WindowGroup {
             RootTabView()
                 .environmentObject(authService)
+                .environmentObject(DisplayNameStore())
                 .onOpenURL { url in
                     // LINE SDK handles the callback automatically
                     _ = LoginManager.shared.application(.shared, open: url)

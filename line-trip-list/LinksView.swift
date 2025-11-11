@@ -2,6 +2,7 @@ import SwiftUI
 
 struct LinksView: View {
     @ObservedObject var lineService: LineMessageService
+    @EnvironmentObject var nameStore: DisplayNameStore
 
     var body: some View {
         NavigationStack {
@@ -36,7 +37,7 @@ struct LinksView: View {
 
                             VStack(alignment: .leading) {
                                 Text(link.url).font(.caption).lineLimit(1).truncationMode(.middle)
-                                Text(link.sourceUser).font(.caption2).foregroundColor(.secondary)
+                                Text(nameStore.displayName(for: link.sourceUserId, fallback: link.sourceUser)).font(.caption2).foregroundColor(.secondary)
                             }
                         }
                         .contextMenu {
