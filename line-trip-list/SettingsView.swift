@@ -61,6 +61,12 @@ struct SettingsView: View {
             }
             .navigationTitle("Settings")
         }
+        .onChange(of: authService.currentUser?.userId) { newId in
+            // if user logged in, dismiss the login sheet
+            if newId != nil {
+                showLoginSheet = false
+            }
+        }
     }
 }
 
