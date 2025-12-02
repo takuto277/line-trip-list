@@ -22,9 +22,15 @@ struct line_trip_listApp: App {
 
     var body: some Scene {
         WindowGroup {
+            // create repository and viewModel for DI
+            let messageRepo = LineMessageService()
+            let messagesVM = MessagesViewModel(repository: messageRepo)
+
             RootTabView()
                 .environmentObject(authService)
                 .environmentObject(DisplayNameStore())
+                .environmentObject(messagesVM)
+                .environmentObject(messageRepo)
                 .onOpenURL { url in
                     // LINE SDK handles the callback automatically
                     _ = LoginManager.shared.application(.shared, open: url)

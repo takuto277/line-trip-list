@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct LinksView: View {
-    @ObservedObject var lineService: LineMessageService
+    @ObservedObject var repository: LineMessageService
     @EnvironmentObject var nameStore: DisplayNameStore
     @State private var editingLinkID: UUID? = nil
     @State private var editingImageURL: String = ""
@@ -13,7 +13,7 @@ struct LinksView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                if lineService.extractedLinks.isEmpty {
+                if repository.extractedLinks.isEmpty {
                     VStack {
                         Text("共有されたリンクはありません")
                             .foregroundColor(.secondary)
@@ -21,36 +21,38 @@ struct LinksView: View {
                     .frame(maxWidth: .infinity, minHeight: 200)
                 } else {
                     let columns = [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)]
-                            LazyVGrid(columns: columns, alignment: .leading, spacing: 12) {
-                                ForEach(lineService.extractedLinks) { link in
-                                    LinkCard(link: link)
-                                        .background(RoundedRectangle(cornerRadius: 8).fill(Color(UIColor.secondarySystemBackground)))
-                                        .onTapGesture {
-                                            if let u = URL(string: link.url) {
-                                                UIApplication.shared.open(u)
-                                            }
-                                        }
-                                        .contextMenu {
-                                            Button("Copy URL") { UIPasteboard.general.string = link.url }
-                                            Button("画像を変更") {
-                                                // open candidate picker
-                                                editingLinkID = link.id
-                                                Task {
-                                                    let candidates = await lineService.fetchImageCandidates(for: link, query: link.previewImageSource ?? "")
-                                                    await MainActor.run {
-                                                        self.candidateImages = candidates
-                                                        self.showCandidatePicker = true
-                                                    }
+                    LazyVGrid(columns: columns, alignment: .leading, spacing: 12) {
+                        ForEach(repository.extractedLinks) { link in
+                            LinkCard(link: link)
+                                .background(RoundedRectangle(cornerRadius: 8).fill(Color(UIColor.secondarySystemBackground)))
+                                .onTapGesture {
+                                    if let u = URL(string: link.url) {
+                                        UIApplication.shared.open(u)
+                                    }
+                                }
+                                .contextMenu {
+                                    Button("Copy URL") { UIPasteboard.general.string = link.url }
+                                    Button("画像を変更") {
+                                        // open candidate picker
+                                        editingLinkID = link.id
+                                        Task {
+                                            if let repo = repository as? LineMessageService {
+                                                let candidates = await repo.fetchImageCandidates(for: link, query: link.previewImageSource ?? "")
+                                                await MainActor.run {
+                                                    self.candidateImages = candidates
+                                                    self.showCandidatePicker = true
                                                 }
                                             }
                                         }
+                                    }
                                 }
-                            }
+                        }
+                    }
                     .padding(.horizontal)
                 }
             }
             .navigationTitle("Shared Links")
-            .toolbar { Button("Refresh") { Task { await lineService.fetchMessages(); await lineService.validateImageLinks() } } }
+            .toolbar { Button("Refresh") { Task { await repository.fetchMessages(lineId: nil); if let repo = repository as? LineMessageService { await repo.validateImageLinks() } } } }
             .sheet(isPresented: $showEditImageSheet) {
                 NavigationStack {
                     Form {
@@ -68,12 +70,12 @@ struct LinksView: View {
                         ToolbarItem(placement: .confirmationAction) {
                             Button("保存") {
                                 // apply change to the selected link
-                                if let id = editingLinkID, let idx = lineService.extractedLinks.firstIndex(where: { $0.id == id }) {
-                                    var updated = lineService.extractedLinks
+                                if let id = editingLinkID, let idx = repository.extractedLinks.firstIndex(where: { $0.id == id }) {
+                                    var updated = repository.extractedLinks
                                     let newUrl = editingImageURL.trimmingCharacters(in: .whitespacesAndNewlines)
                                     updated[idx].previewImageURL = newUrl.isEmpty ? nil : newUrl
                                     updated[idx].previewImageSource = newUrl.isEmpty ? updated[idx].previewImageSource : "手動"
-                                    lineService.extractedLinks = updated
+                                    repository.extractedLinks = updated
                                 }
                                 showEditImageSheet = false
                             }
@@ -89,11 +91,11 @@ struct LinksView: View {
                                 .textFieldStyle(RoundedBorderTextFieldStyle())
                             Button("検索") {
                                 Task {
-                                    if let id = editingLinkID, let link = lineService.extractedLinks.first(where: { $0.id == id }) {
+                                    if let id = editingLinkID, let link = repository.extractedLinks.first(where: { $0.id == id }) {
                                         let q = candidateSearchQuery.isEmpty ? (link.previewImageSource ?? "") : candidateSearchQuery
-                                        let candidates = await lineService.fetchImageCandidates(for: link, query: q)
-                                        await MainActor.run {
-                                            self.candidateImages = candidates
+                                        if let repo = repository as? LineMessageService {
+                                            let candidates = await repo.fetchImageCandidates(for: link, query: q)
+                                            await MainActor.run { self.candidateImages = candidates }
                                         }
                                     }
                                 }
@@ -120,11 +122,11 @@ struct LinksView: View {
                                             }
                                         }
                                         Button("選択") {
-                                            if let id = editingLinkID, let idx = lineService.extractedLinks.firstIndex(where: { $0.id == id }) {
-                                                var updated = lineService.extractedLinks
+                                            if let id = editingLinkID, let idx = repository.extractedLinks.firstIndex(where: { $0.id == id }) {
+                                                var updated = repository.extractedLinks
                                                 updated[idx].previewImageURL = imgUrl
                                                 updated[idx].previewImageSource = candidateSearchQuery.isEmpty ? updated[idx].previewImageSource : candidateSearchQuery
-                                                lineService.extractedLinks = updated
+                                                repository.extractedLinks = updated
                                             }
                                             showCandidatePicker = false
                                         }
@@ -215,6 +217,7 @@ struct LinksView: View {
 
 struct LinksView_Previews: PreviewProvider {
     static var previews: some View {
-        LinksView(lineService: LineMessageService())
+        LinksView(repository: LineMessageService())
+            .environmentObject(DisplayNameStore())
     }
 }

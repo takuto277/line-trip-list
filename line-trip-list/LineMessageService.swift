@@ -33,7 +33,7 @@ struct MessagesResponse: Codable {
 }
 
 // LINE Webhook受信用のサービス
-class LineMessageService: ObservableObject {
+class LineMessageService: ObservableObject, MessageRepository {
     @Published var receivedMessages: [LineMessage] = []
     // 抽出したリンクの一覧
     @Published var extractedLinks: [LinkItem] = []
@@ -631,3 +631,6 @@ enum LineAPIError: Error {
         }
     }
 }
+
+// (No extension needed — LineMessageService already implements the MessageRepository requirements)
+

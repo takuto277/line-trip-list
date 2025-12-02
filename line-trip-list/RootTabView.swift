@@ -3,8 +3,10 @@ import SwiftData
 
 struct RootTabView: View {
     @EnvironmentObject var authService: AuthenticationService
-    @StateObject private var lineService = LineMessageService()
-    @StateObject private var nameStore = DisplayNameStore()
+    @EnvironmentObject var nameStore: DisplayNameStore
+    // Expect MessagesViewModel and repository to be injected at App level
+    @EnvironmentObject var messagesVM: MessagesViewModel
+    @EnvironmentObject var messageRepo: LineMessageService
 
     var body: some View {
         TabView {
@@ -13,7 +15,7 @@ struct RootTabView: View {
                     Label("Messages", systemImage: "message")
                 }
 
-            LinksView(lineService: lineService)
+            LinksView(repository: messageRepo)
                 .tabItem {
                     Label("Links", systemImage: "link")
                 }

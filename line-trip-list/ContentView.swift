@@ -11,7 +11,7 @@ import SwiftData
 struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
     // removed items query - Item list not needed
-    @StateObject private var lineService = LineMessageService()
+    @EnvironmentObject var messagesVM: MessagesViewModel
     @EnvironmentObject var authService: AuthenticationService
     @EnvironmentObject var nameStore: DisplayNameStore
     @State private var messageText = ""
@@ -29,33 +29,28 @@ struct ContentView: View {
                 GroupBox("LINE Messages") {
                     VStack(alignment: .leading, spacing: 10) {
                         HStack {
-                            Text("受信メッセージ (\(lineService.receivedMessages.count))")
+                            Text("受信メッセージ (\(messagesVM.messages.count))")
                                 .font(.headline)
                             Spacer()
                             Button("更新") {
                                 Task {
                                     if let userId = authService.currentUser?.userId {
-                                        print("🔁 Update pressed — using userId: \(userId)")
-                                        await lineService.fetchMessages(lineId: userId)
-                                        await lineService.persistMessages(into: modelContext)
-                                        // add discovered userIds (fallback to userName) to overrides list if missing
-                                        nameStore.addDiscoveredUserIds(lineService.receivedMessages.map { $0.userId ?? $0.userName })
+                                        await messagesVM.refresh(lineId: userId, into: modelContext)
+                                        nameStore.addDiscoveredUserIds(messagesVM.messages.map { $0.userId ?? $0.userName })
                                     } else {
-                                        print("🔁 Update pressed — no userId, fetching all")
-                                        await lineService.fetchMessages()
-                                        await lineService.persistMessages(into: modelContext)
-                                        nameStore.addDiscoveredUserIds(lineService.receivedMessages.map { $0.userId ?? $0.userName })
+                                        await messagesVM.refresh(into: modelContext)
+                                        nameStore.addDiscoveredUserIds(messagesVM.messages.map { $0.userId ?? $0.userName })
                                     }
                                 }
                             }
-                            .disabled(lineService.isLoading)
+                            .disabled(messagesVM.isLoading)
                         }
                         
                         // 受信メッセージ一覧
-                        if lineService.isLoading {
+                        if messagesVM.isLoading {
                             ProgressView("読み込み中...")
                                 .frame(minHeight: 200)
-                        } else if lineService.receivedMessages.isEmpty {
+                        } else if messagesVM.messages.isEmpty {
                             VStack {
                                 Text("まだメッセージがありません")
                                     .foregroundColor(.secondary)
@@ -67,7 +62,7 @@ struct ContentView: View {
                         } else {
                             ScrollView {
                                 LazyVStack(alignment: .leading, spacing: 8) {
-                                    ForEach(lineService.receivedMessages, id: \.timestamp) { message in
+                                    ForEach(messagesVM.messages, id: \.timestamp) { message in
                                         VStack(alignment: .leading, spacing: 4) {
                                             HStack {
                                                 Text(nameStore.displayName(for: message.userId, fallback: message.userName))
@@ -97,7 +92,21 @@ struct ContentView: View {
                                 .textFieldStyle(RoundedBorderTextFieldStyle())
                             
                             Button("送信") {
-                                sendMessage()
+                                Task {
+                                    do {
+                                        try await messagesVM.send(text: messageText, to: Config.MessagingAPI.groupID)
+                                        await MainActor.run {
+                                            messageText = ""
+                                            alertMessage = "メッセージを送信しました"
+                                            showingAlert = true
+                                        }
+                                    } catch {
+                                        await MainActor.run {
+                                            alertMessage = "送信に失敗しました: \(error.localizedDescription)"
+                                            showingAlert = true
+                                        }
+                                    }
+                                }
                             }
                             .disabled(messageText.isEmpty || Config.MessagingAPI.groupID.isEmpty)
                         }
@@ -124,14 +133,11 @@ struct ContentView: View {
             // 起動時にログイン済みならユーザーIDでフィルタして取得
             Task {
                 if let userId = authService.currentUser?.userId {
-                    await lineService.fetchMessages(lineId: userId)
-                    await lineService.persistMessages(into: modelContext)
-                    // populate overrides from fetched messages
-                    nameStore.addDiscoveredUserIds(lineService.receivedMessages.map { $0.userId ?? $0.userName })
+                    await messagesVM.refresh(lineId: userId, into: modelContext)
+                    nameStore.addDiscoveredUserIds(messagesVM.messages.map { $0.userId ?? $0.userName })
                 } else {
-                    await lineService.fetchMessages()
-                    await lineService.persistMessages(into: modelContext)
-                    nameStore.addDiscoveredUserIds(lineService.receivedMessages.map { $0.userId ?? $0.userName })
+                    await messagesVM.refresh(into: modelContext)
+                    nameStore.addDiscoveredUserIds(messagesVM.messages.map { $0.userId ?? $0.userName })
                 }
             }
         }
@@ -140,13 +146,11 @@ struct ContentView: View {
         .onChange(of: authService.currentUser?.userId) { newUserId in
             Task {
                 if let id = newUserId {
-                    await lineService.fetchMessages(lineId: id)
-                    await lineService.persistMessages(into: modelContext)
-                    nameStore.addDiscoveredUserIds(lineService.receivedMessages.map { $0.userId ?? $0.userName })
+                    await messagesVM.refresh(lineId: id, into: modelContext)
+                    nameStore.addDiscoveredUserIds(messagesVM.messages.map { $0.userId ?? $0.userName })
                 } else {
-                    await lineService.fetchMessages()
-                    await lineService.persistMessages(into: modelContext)
-                    nameStore.addDiscoveredUserIds(lineService.receivedMessages.map { $0.userId ?? $0.userName })
+                    await messagesVM.refresh(into: modelContext)
+                    nameStore.addDiscoveredUserIds(messagesVM.messages.map { $0.userId ?? $0.userName })
                 }
             }
         }
@@ -160,21 +164,7 @@ struct ContentView: View {
     }
 
     private func sendMessage() {
-        Task {
-            do {
-                try await lineService.sendMessage(to: Config.MessagingAPI.groupID, text: messageText)
-                await MainActor.run {
-                    messageText = ""
-                    alertMessage = "メッセージを送信しました"
-                    showingAlert = true
-                }
-            } catch {
-                await MainActor.run {
-                    alertMessage = "送信に失敗しました: \(error.localizedDescription)"
-                    showingAlert = true
-                }
-            }
-        }
+        // sendMessage moved to MessagesViewModel.send(text:to:)
     }
 
     private func addItem() {
