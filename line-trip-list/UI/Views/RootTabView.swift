@@ -20,7 +20,7 @@ struct RootTabView: View {
                     Label("Links", systemImage: "link")
                 }
 
-            SettingsView()
+            SettingsView(nameStore: nameStore, authService: authService)
                 .tabItem {
                     Label("Settings", systemImage: "gear")
                 }

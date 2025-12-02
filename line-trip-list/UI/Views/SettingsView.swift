@@ -1,16 +1,20 @@
 import SwiftUI
+import Combine
 
 struct SettingsView: View {
-    @EnvironmentObject var authService: AuthenticationService
-    @EnvironmentObject var nameStore: DisplayNameStore
+    @StateObject private var vm: SettingsViewModel
     @State private var showLoginSheet: Bool = false
-    @State private var newUserId: String = ""
+    @State private var currentUserCancellable: AnyCancellable?
+
+    init(nameStore: DisplayNameStore, authService: AuthenticationService) {
+        _vm = StateObject(wrappedValue: SettingsViewModel(nameStore: nameStore, authService: authService))
+    }
 
     var body: some View {
         NavigationStack {
             Form {
                 Section(header: Text("LINE Login")) {
-                    if let user = authService.currentUser {
+                    if let user = vm.authService.currentUser {
                         HStack {
                             AsyncImage(url: URL(string: user.pictureUrl ?? "")) { img in
                                 img.resizable()
@@ -26,31 +30,35 @@ struct SettingsView: View {
                                 Text(user.userId)
                                     .font(.caption2)
                                     .foregroundColor(.secondary)
+                                // debug: show picture URL
+                                Text(user.pictureUrl ?? "(nil)")
+                                    .font(.caption2)
+                                    .foregroundColor(.secondary)
                             }
                             Spacer()
-                            Button("Logout") { authService.logout() }
+                            Button("Logout") { vm.authService.logout() }
                         }
                     } else {
                         Button("Login with LINE") { showLoginSheet = true }
                             .sheet(isPresented: $showLoginSheet) {
                                 LoginView()
-                                    .environmentObject(authService)
+                                    .environmentObject(vm.authService)
                             }
                     }
                 }
 
                 Section(header: Text("Display name overrides")) {
-                    if nameStore.overrides.isEmpty {
+                    if vm.displayNameOverrides.isEmpty {
                         Text("No overrides set").foregroundColor(.secondary)
                     } else {
-                        ForEach(Array(nameStore.overrides.keys.sorted()), id: \.self) { userId in
+                        ForEach(Array(vm.displayNameOverrides.keys.sorted()), id: \.self) { userId in
                             HStack {
                                 Text(userId).font(.caption2)
-                                TextField("表示名", text: nameStore.binding(for: userId))
+                                TextField("表示名", text: Binding(get: { vm.displayNameOverrides[userId] ?? "" }, set: { vm.setOverride(userId, name: $0) }))
                                     .textFieldStyle(RoundedBorderTextFieldStyle())
                                 Spacer()
                                 Button(role: .destructive) {
-                                    nameStore.removeOverride(for: userId)
+                                    vm.removeOverride(userId)
                                 } label: {
                                     Image(systemName: "trash")
                                 }
@@ -61,19 +69,29 @@ struct SettingsView: View {
             }
             .navigationTitle("Settings")
         }
-        .onChange(of: authService.currentUser?.userId) { newId in
-            // if user logged in, dismiss the login sheet
+        .onChange(of: vm.authService.currentUser?.userId) { newId in
             if newId != nil {
                 showLoginSheet = false
             }
+            print("[AuthObserve] authService.currentUser changed: \(String(describing: vm.authService.currentUser))")
+        }
+        .onAppear {
+            print("[Settings] currentUser: \(String(describing: vm.authService.currentUser))")
+            // Observe changes to the shared AuthenticationService's currentUser
+            currentUserCancellable = vm.authService.$currentUser
+                .sink { user in
+                    print("[AuthObserve] $currentUser sink: \(String(describing: user))")
+                }
+        }
+        .onDisappear {
+            currentUserCancellable?.cancel()
+            currentUserCancellable = nil
         }
     }
 }
 
 struct SettingsView_Previews: PreviewProvider {
     static var previews: some View {
-        SettingsView()
-            .environmentObject(AuthenticationService())
-            .environmentObject(DisplayNameStore())
+        SettingsView(nameStore: DisplayNameStore(), authService: AuthenticationService())
     }
 }
