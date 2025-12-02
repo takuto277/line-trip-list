@@ -10,7 +10,7 @@ struct RootTabView: View {
 
     var body: some View {
         TabView {
-            ContentView()
+            MessageTabView()
                 .tabItem {
                     Label("Messages", systemImage: "message")
                 }

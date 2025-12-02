@@ -1,14 +1,14 @@
 //
-//  ContentView.swift
+//  MessageTabView.swift
 //  line-trip-list
 //
-//  Created by 小野拓人 on 2025/10/01.
+//  Created by automated refactor on 2025/12/03.
 //
 
 import SwiftUI
 import SwiftData
 
-struct ContentView: View {
+struct MessageTabView: View {
     @Environment(\.modelContext) private var modelContext
     // removed items query - Item list not needed
     @EnvironmentObject var messagesVM: MessagesViewModel
@@ -177,7 +177,7 @@ struct ContentView: View {
 }
 
 #Preview {
-    ContentView()
+    MessageTabView()
 }
 
 // LinkRowView: extracted to top-level to ease compiler type-checking
