@@ -39,11 +39,23 @@ struct SettingsView: View {
                             Button("Logout") { vm.authService.logout() }
                         }
                     } else {
-                        Button("Login with LINE") { showLoginSheet = true }
+                        VStack(alignment: .leading, spacing: 8) {
+                            Button("Login with LINE") { showLoginSheet = true }
+
+                            // Dev helper: simulate login without LINE SDK to verify wiring
+                            Button("Simulate Login (dev)") {
+                                let fakeAccessToken = "dev-token-\(UUID().uuidString)"
+                                let fakeUser = LineUser(userId: "User-Dev-\(Int.random(in: 1000..<9999))", displayName: "Dev User", pictureUrl: "https://picsum.photos/200", statusMessage: nil)
+                                vm.authService.login(accessToken: fakeAccessToken, user: fakeUser)
+                            }
+                            .foregroundColor(.blue)
+                            .font(.caption)
+                            .buttonStyle(.borderless)
                             .sheet(isPresented: $showLoginSheet) {
                                 LoginView()
                                     .environmentObject(vm.authService)
                             }
+                        }
                     }
                 }
 

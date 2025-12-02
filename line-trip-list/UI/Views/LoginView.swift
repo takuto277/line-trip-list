@@ -41,7 +41,10 @@ struct LoginView: View {
 
                 Spacer()
 
-                Button(action: { Task { await vm.loginWithLine() } }) {
+                Button(action: {
+                    print("[UI] Login button tapped")
+                    Task { await vm.loginWithLine() }
+                }) {
                     HStack {
                         Image(systemName: "arrow.right.circle.fill")
                             .font(.title2)

@@ -1,5 +1,6 @@
 import Foundation
 import Combine
+import LineSDK
 
 @MainActor
 final class LoginViewModel: ObservableObject {
@@ -23,9 +24,30 @@ final class LoginViewModel: ObservableObject {
         isLoading = true
         defer { isLoading = false }
         do {
-            // high level: invoke the service's login flow. Implementation may vary.
-            // If AuthenticationService exposes an async login(accessToken:) or similar,
-            // call it here. For now we just toggle isLoading and rely on external callback.
+            print("[VM] loginWithLine invoked")
+            #if canImport(LineSDK)
+            // Bridge the callback-based LoginManager API into async/await
+            let loginResult: LoginResult = try await withCheckedThrowingContinuation { (cont: CheckedContinuation<LoginResult, Error>) in
+                LoginManager.shared.login(permissions: [.profile]) { result in
+                    switch result {
+                    case .success(let lr):
+                        cont.resume(returning: lr)
+                    case .failure(let err):
+                        cont.resume(throwing: err)
+                    }
+                }
+            }
+
+            // Extract access token and fetch profile
+            let token = loginResult.accessToken.value
+            print("[VM] LINE login succeeded, token available")
+            try await authService.login(accessToken: token)
+            #else
+            // Fallback: if LineSDK is not available (e.g., in unit tests), keep the dev-simulated path
+            let fakeAccessToken = "dev-token-\(UUID().uuidString)"
+            let fakeUser = LineUser(userId: "User-Dev-\(Int.random(in: 1000..<9999))", displayName: "Dev User", pictureUrl: "https://picsum.photos/200", statusMessage: nil)
+            authService.login(accessToken: fakeAccessToken, user: fakeUser)
+            #endif
         } catch {
             errorMessage = error.localizedDescription
         }
