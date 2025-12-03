@@ -5,6 +5,7 @@ struct LinksView: View {
     @EnvironmentObject var nameStore: DisplayNameStore
     @State private var editingLinkID: UUID? = nil
     @State private var editingImageURL: String = ""
+    @State private var editingTitle: String = ""
     @State private var showEditImageSheet: Bool = false
     @State private var showCandidatePicker: Bool = false
     @State private var candidateImages: [String] = []
@@ -61,6 +62,9 @@ struct LinksView: View {
                                 .keyboardType(.URL)
                                 .textContentType(.URL)
                         }
+                        Section(header: Text("タイトル (任意)")) {
+                            TextField("例: おすすめの店", text: $editingTitle)
+                        }
                     }
                     .navigationTitle("画像を変更")
                     .toolbar {
@@ -71,17 +75,18 @@ struct LinksView: View {
                             Button("保存") {
                                 // apply change to the selected link
                                         if let id = editingLinkID, let idx = repository.extractedLinks.firstIndex(where: { $0.id == id }) {
-                                    var updated = repository.extractedLinks
-                                    let newUrl = editingImageURL.trimmingCharacters(in: .whitespacesAndNewlines)
-                                    updated[idx].previewImageURL = newUrl.isEmpty ? nil : newUrl
-                                    // Keep existing previewImageSource when saving a manual URL
-                                    // (do not overwrite with a literal "手動")
-                                    updated[idx].previewImageSource = updated[idx].previewImageSource
-                                    repository.extractedLinks = updated
-                                        if !newUrl.isEmpty {
-                                            repository.savePreviewOverride(forLinkUrl: updated[idx].url, imageUrl: newUrl)
+                                            var updated = repository.extractedLinks
+                                            let newUrl = editingImageURL.trimmingCharacters(in: .whitespacesAndNewlines)
+                                            let newTitle = editingTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+                                            updated[idx].previewImageURL = newUrl.isEmpty ? nil : newUrl
+                                            if !newTitle.isEmpty {
+                                                updated[idx].previewImageSource = newTitle
+                                            }
+                                            repository.extractedLinks = updated
+                                            if !newUrl.isEmpty {
+                                                repository.savePreviewOverride(forLinkUrl: updated[idx].url, imageUrl: newUrl, title: newTitle.isEmpty ? nil : newTitle)
+                                            }
                                         }
-                                }
                                 showEditImageSheet = false
                             }
                         }
@@ -133,8 +138,9 @@ struct LinksView: View {
                                                 // Preserve existing source unless the user provided a search query
                                                 updated[idx].previewImageSource = candidateSearchQuery.isEmpty ? updated[idx].previewImageSource : candidateSearchQuery
                                                 repository.extractedLinks = updated
-                                                // persist override by link URL
-                                                repository.savePreviewOverride(forLinkUrl: updated[idx].url, imageUrl: imgUrl)
+                                                // persist override by link URL, using candidateSearchQuery as title when provided
+                                                let persistentTitle = candidateSearchQuery.trimmingCharacters(in: .whitespacesAndNewlines)
+                                                repository.savePreviewOverride(forLinkUrl: updated[idx].url, imageUrl: imgUrl, title: persistentTitle.isEmpty ? nil : persistentTitle)
                                             }
                                             showCandidatePicker = false
                                         }
