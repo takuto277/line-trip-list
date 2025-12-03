@@ -3,7 +3,7 @@ import SwiftData
 
 struct Persistence {
     static let shared: ModelContainer = {
-        let schema = Schema([Message.self, LinkPreview.self, UserDisplayName.self])
+        let schema = Schema([Message.self, LinkPreview.self, UserDisplayName.self, PreviewOverride.self])
         let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
         do {
             return try ModelContainer(for: schema, configurations: [modelConfiguration])
@@ -57,5 +57,38 @@ struct Persistence {
         } catch {
             print("⚠️ Failed to upsert UserDisplayName: \(error)")
         }
+    }
+
+    static func upsertPreviewOverride(linkUrl: String, overrideImageUrl: String, into context: ModelContext) {
+        if let existing = (try? context.fetch(FetchDescriptor<PreviewOverride>()).first(where: { $0.linkUrl == linkUrl })) {
+            existing.overrideImageUrl = overrideImageUrl
+            existing.createdAt = Date()
+        } else {
+            let p = PreviewOverride(linkUrl: linkUrl, overrideImageUrl: overrideImageUrl)
+            context.insert(p)
+        }
+        do {
+            try context.save()
+        } catch {
+            print("⚠️ Failed to upsert PreviewOverride: \(error)")
+        }
+    }
+
+    static func fetchPreviewOverride(for linkUrl: String, from context: ModelContext) -> PreviewOverride? {
+        do {
+            let all = try context.fetch(FetchDescriptor<PreviewOverride>())
+            return all.first(where: { $0.linkUrl == linkUrl })
+        } catch {
+            print("⚠️ Failed to fetch PreviewOverride: \(error)")
+            return nil
+        }
+    }
+
+    // variant that returns title and url together for convenience
+    static func fetchPreviewOverrideValues(for linkUrl: String, from context: ModelContext) -> (imageUrl: String, title: String?)? {
+        if let p = fetchPreviewOverride(for: linkUrl, from: context) {
+            return (p.overrideImageUrl, p.title)
+        }
+        return nil
     }
 }

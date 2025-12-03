@@ -1,167 +1,166 @@
-
 import SwiftUI
-#if canImport(UIKit)
-import UIKit
-#endif
 
 struct LinksView: View {
-    @StateObject private var vm: LinksViewModel
+    @ObservedObject var repository: LineMessageService
     @EnvironmentObject var nameStore: DisplayNameStore
-    @Environment(\.openURL) private var openURL
-    
     @State private var editingLinkID: UUID? = nil
     @State private var editingImageURL: String = ""
     @State private var showEditImageSheet: Bool = false
     @State private var showCandidatePicker: Bool = false
     @State private var candidateImages: [String] = []
     @State private var candidateSearchQuery: String = ""
-    
-    init(repository: LineMessageService) {
-        _vm = StateObject(wrappedValue: LinksViewModel(repository: repository))
-    }
-    
-        var body: some View {
-            NavigationStack {
-                ScrollView {
-                    if vm.links.isEmpty {
-                        VStack {
-                            Text("共有されたリンクはありません")
-                                .foregroundColor(.secondary)
-                        }
-                        .frame(maxWidth: .infinity, minHeight: 200)
-                    } else {
-                        gridView
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                if repository.extractedLinks.isEmpty {
+                    VStack {
+                        Text("共有されたリンクはありません")
+                            .foregroundColor(.secondary)
                     }
-                }
-                .navigationTitle("Shared Links")
-                .toolbar { Button("Refresh") { Task { await vm.refresh(); await vm.validateImageLinks() } } }
-                .sheet(isPresented: $showEditImageSheet) { editImageSheet }
-                .sheet(isPresented: $showCandidatePicker) { candidatePickerSheet }
-                .onAppear {
-                    Task { await vm.refresh() }
-                }
-            }
-        }
-
-        // extracted subviews to reduce type-check complexity
-        private var gridView: some View {
-            let columns = [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)]
-            let bgColor: Color = {
-#if canImport(UIKit)
-                return Color(UIColor.secondarySystemBackground)
-#else
-                return Color.secondary.opacity(0.1)
-#endif
-            }()
-
-            return LazyVGrid(columns: columns, alignment: .leading, spacing: 12) {
-                ForEach(vm.links) { link in
-                    LinkCardView(link: link)
-                        .background(RoundedRectangle(cornerRadius: 8).fill(bgColor))
-                        .onTapGesture {
-                            if let u = URL(string: link.url) { openURL(u) }
-                        }
-                        .contextMenu {
-                            Button("Copy URL") { copyToPasteboard(link.url) }
-                            Button("画像を変更") {
-                                editingLinkID = link.id
-                                Task {
-                                    let candidates = await vm.fetchImageCandidates(for: link, query: link.previewImageSource ?? "")
-                                    await MainActor.run {
-                                        self.candidateImages = candidates
-                                        self.showCandidatePicker = true
+                    .frame(maxWidth: .infinity, minHeight: 200)
+                } else {
+                    let columns = [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)]
+                    LazyVGrid(columns: columns, alignment: .leading, spacing: 12) {
+                        ForEach(repository.extractedLinks) { link in
+                            LinkCard(link: link)
+                                .background(RoundedRectangle(cornerRadius: 8).fill(Color(UIColor.secondarySystemBackground)))
+                                .onTapGesture {
+                                    if let u = URL(string: link.url) {
+                                        UIApplication.shared.open(u)
                                     }
                                 }
-                            }
-                        }
-                }
-            }
-            .padding(.horizontal)
-        }
-
-        private var editImageSheet: some View {
-            NavigationStack {
-                Form {
-                    Section(header: Text("新しい画像 URL")) {
-                        TextField("https://...", text: $editingImageURL)
-#if canImport(UIKit)
-                            .keyboardType(.URL)
-                            .textContentType(.URL)
-#endif
-                    }
-                }
-                .navigationTitle("画像を変更")
-                .toolbar {
-                    ToolbarItem(placement: .cancellationAction) { Button("キャンセル") { showEditImageSheet = false } }
-                    ToolbarItem(placement: .confirmationAction) {
-                        Button("保存") {
-                            if let id = editingLinkID {
-                                let newUrl = editingImageURL.trimmingCharacters(in: .whitespacesAndNewlines)
-                                vm.setPreview(for: id, url: newUrl.isEmpty ? nil : newUrl, source: newUrl.isEmpty ? nil : "手動")
-                            }
-                            showEditImageSheet = false
-                        }
-                    }
-                }
-            }
-        }
-
-        private var candidatePickerSheet: some View {
-            NavigationStack {
-                VStack {
-                    HStack {
-                        TextField("検索語を入力", text: $candidateSearchQuery)
-                            .textFieldStyle(RoundedBorderTextFieldStyle())
-                        Button("検索") {
-                            Task {
-                                if let id = editingLinkID, let link = vm.links.first(where: { $0.id == id }) {
-                                            let q = candidateSearchQuery.isEmpty ? (link.previewImageSource ?? "") : candidateSearchQuery
-                                            let candidates = await vm.fetchImageCandidates(for: link, query: q)
-                                            await MainActor.run { self.candidateImages = candidates }
-                                }
-                            }
-                        }
-                    }
-                    .padding()
-
-                    ScrollView {
-                        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-                            ForEach(candidateImages, id: \.self) { imgUrl in
-                                VStack {
-                                    if let u = URL(string: imgUrl) {
-                                        AsyncImage(url: u) { phase in
-                                            switch phase {
-                                            case .empty: ProgressView().frame(height: 80)
-                                            case .success(let image): image.resizable().scaledToFill().frame(height: 120).clipped()
-                                            case .failure: Image(systemName: "photo").frame(height: 80)
-                                            @unknown default: EmptyView()
+                                .contextMenu {
+                                    Button("Copy URL") { UIPasteboard.general.string = link.url }
+                                    Button("画像を変更") {
+                                        // open candidate picker
+                                        editingLinkID = link.id
+                                        Task {
+                                            if let repo = repository as? LineMessageService {
+                                                let candidates = await repo.fetchImageCandidates(for: link, query: link.previewImageSource ?? "")
+                                                await MainActor.run {
+                                                    self.candidateImages = candidates
+                                                    self.showCandidatePicker = true
+                                                }
                                             }
                                         }
                                     }
-                                    Button("選択") {
-                                            if let id = editingLinkID {
-                                                vm.setPreview(for: id, url: imgUrl, source: candidateSearchQuery.isEmpty ? nil : candidateSearchQuery)
-                                            }
-                                        showCandidatePicker = false
+                                }
+                        }
+                    }
+                    .padding(.horizontal)
+                }
+            }
+            .navigationTitle("Shared Links")
+            .toolbar { Button("Refresh") { Task { await repository.fetchMessages(lineId: nil); if let repo = repository as? LineMessageService { await repo.validateImageLinks() } } } }
+            .sheet(isPresented: $showEditImageSheet) {
+                NavigationStack {
+                    Form {
+                        Section(header: Text("新しい画像 URL")) {
+                            TextField("https://...", text: $editingImageURL)
+                                .keyboardType(.URL)
+                                .textContentType(.URL)
+                        }
+                    }
+                    .navigationTitle("画像を変更")
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button("キャンセル") { showEditImageSheet = false }
+                        }
+                        ToolbarItem(placement: .confirmationAction) {
+                            Button("保存") {
+                                // apply change to the selected link
+                                        if let id = editingLinkID, let idx = repository.extractedLinks.firstIndex(where: { $0.id == id }) {
+                                    var updated = repository.extractedLinks
+                                    let newUrl = editingImageURL.trimmingCharacters(in: .whitespacesAndNewlines)
+                                    updated[idx].previewImageURL = newUrl.isEmpty ? nil : newUrl
+                                    // Keep existing previewImageSource when saving a manual URL
+                                    // (do not overwrite with a literal "手動")
+                                    updated[idx].previewImageSource = updated[idx].previewImageSource
+                                    repository.extractedLinks = updated
+                                        if !newUrl.isEmpty {
+                                            repository.savePreviewOverride(forLinkUrl: updated[idx].url, imageUrl: newUrl)
+                                        }
+                                }
+                                showEditImageSheet = false
+                            }
+                        }
+                    }
+                }
+            }
+            .sheet(isPresented: $showCandidatePicker) {
+                NavigationStack {
+                    VStack {
+                        HStack {
+                            TextField("検索語を入力", text: $candidateSearchQuery)
+                                .textFieldStyle(RoundedBorderTextFieldStyle())
+                            Button("検索") {
+                                Task {
+                                    if let id = editingLinkID, let link = repository.extractedLinks.first(where: { $0.id == id }) {
+                                        let q = candidateSearchQuery.isEmpty ? (link.previewImageSource ?? "") : candidateSearchQuery
+                                        if let repo = repository as? LineMessageService {
+                                            let candidates = await repo.fetchImageCandidates(for: link, query: q)
+                                            await MainActor.run { self.candidateImages = candidates }
+                                        }
                                     }
                                 }
                             }
                         }
                         .padding()
+
+                        ScrollView {
+                            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
+                                ForEach(candidateImages, id: \ .self) { imgUrl in
+                                    VStack {
+                                        if let u = URL(string: imgUrl) {
+                                            AsyncImage(url: u) { phase in
+                                                switch phase {
+                                                case .empty:
+                                                    ProgressView().frame(height: 80)
+                                                case .success(let image):
+                                                    image.resizable().scaledToFill().frame(height: 120).clipped()
+                                                case .failure:
+                                                    Image(systemName: "photo").frame(height: 80)
+                                                @unknown default:
+                                                    EmptyView()
+                                                }
+                                            }
+                                        }
+                                        Button("選択") {
+                                            if let id = editingLinkID, let idx = repository.extractedLinks.firstIndex(where: { $0.id == id }) {
+                                                var updated = repository.extractedLinks
+                                                updated[idx].previewImageURL = imgUrl
+                                                // Preserve existing source unless the user provided a search query
+                                                updated[idx].previewImageSource = candidateSearchQuery.isEmpty ? updated[idx].previewImageSource : candidateSearchQuery
+                                                repository.extractedLinks = updated
+                                                // persist override by link URL
+                                                repository.savePreviewOverride(forLinkUrl: updated[idx].url, imageUrl: imgUrl)
+                                            }
+                                            showCandidatePicker = false
+                                        }
+                                    }
+                                }
+                            }
+                            .padding()
+                        }
+                        Spacer()
                     }
-                    Spacer()
+                    .navigationTitle("画像候補を選択")
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button("閉じる") { showCandidatePicker = false }
+                        }
+                    }
                 }
-                .navigationTitle("画像候補を選択")
-                .toolbar { ToolbarItem(placement: .cancellationAction) { Button("閉じる") { showCandidatePicker = false } } }
             }
         }
-}
+    }
 
-private struct LinkCardView: View {
-    let link: LineMessageService.LinkItem
-    
-    var body: some View {
+    // Card view for each link
+    @ViewBuilder
+    private func LinkCard(link: LineMessageService.LinkItem) -> some View {
         VStack(spacing: 8) {
+            // top: title (preview source or submitter)
             let titleText = (link.previewImageSource?.isEmpty == false) ? link.previewImageSource! : link.sourceUser
             Text(titleText)
                 .font(.system(size: 14, weight: .bold))
@@ -169,7 +168,8 @@ private struct LinkCardView: View {
                 .lineLimit(2)
                 .truncationMode(.tail)
                 .frame(maxWidth: .infinity, alignment: .leading)
-            
+
+            // middle: large image (or placeholder)
             ZStack {
                 if let preview = link.previewImageURL, let url = URL(string: preview) {
                     AsyncImage(url: url) { phase in
@@ -205,15 +205,12 @@ private struct LinkCardView: View {
                             EmptyView()
                         }
                     }
-                    } else {
-#if canImport(UIKit)
-                        Rectangle().fill(Color(UIColor.systemGray5)).frame(maxWidth: .infinity).frame(height: 120)
-#else
-                        Rectangle().fill(Color.gray.opacity(0.2)).frame(maxWidth: .infinity).frame(height: 120)
-#endif
-                    }
+                        } else {
+                            Rectangle().fill(Color(UIColor.systemGray5)).frame(maxWidth: .infinity).frame(height: 120)
+                        }
             }
-            
+
+            // bottom: URL limited to 2 lines
             Text(link.url)
                 .font(.caption2)
                 .foregroundColor(.secondary)
@@ -221,8 +218,8 @@ private struct LinkCardView: View {
                 .truncationMode(.middle)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .padding(6)
-        .frame(maxWidth: .infinity, minHeight: 220, maxHeight: 220, alignment: .top)
+    .padding(6)
+    .frame(maxWidth: .infinity, minHeight: 220, maxHeight: 220, alignment: .top)
     }
 }
 
@@ -231,13 +228,4 @@ struct LinksView_Previews: PreviewProvider {
         LinksView(repository: LineMessageService())
             .environmentObject(DisplayNameStore())
     }
-}
-
-// Helper to copy text to clipboard in UIKit; no-op on other platforms
-private func copyToPasteboard(_ text: String) {
-#if canImport(UIKit)
-    UIPasteboard.general.string = text
-#else
-    // nothing
-#endif
 }

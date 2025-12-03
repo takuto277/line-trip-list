@@ -48,6 +48,19 @@ class LineMessageService: ObservableObject, MessageRepository {
         fetchMessages() // 起動時にメッセージを取得
     }
 
+    // Save a manual override for a specific link id (local cache)
+    func savePreviewOverride(forLinkUrl linkUrl: String, imageUrl: String, title: String? = nil) {
+        let ctx = ModelContext(Persistence.shared)
+        Persistence.upsertPreviewOverride(linkUrl: linkUrl, overrideImageUrl: imageUrl, into: ctx)
+        // also update title if provided
+        if let t = title, !t.isEmpty {
+            if let existing = (try? ctx.fetch(FetchDescriptor<PreviewOverride>()).first(where: { $0.linkUrl == linkUrl })) {
+                existing.title = t
+                do { try ctx.save() } catch { print("⚠️ Failed to save preview title: \(error)") }
+            }
+        }
+    }
+
     // Persist fetched messages into SwiftData ModelContext
     func persistMessages(into context: ModelContext) async {
         await MainActor.run {
@@ -99,7 +112,19 @@ class LineMessageService: ObservableObject, MessageRepository {
                 await MainActor.run {
                     self.receivedMessages = decodedMessages.sorted { $0.timestamp > $1.timestamp }
                     // メッセージからリンクを抽出
-                    self.extractedLinks = Self.extractLinks(from: self.receivedMessages)
+                    var links = Self.extractLinks(from: self.receivedMessages)
+                    // Apply any local preview overrides by link URL
+                    let ctx = ModelContext(Persistence.shared)
+                    for i in links.indices {
+                        if let override = Persistence.fetchPreviewOverride(for: links[i].url, from: ctx) {
+                            links[i].previewImageURL = override.overrideImageUrl
+                            // prefer saved title if present
+                            if let t = override.title, !t.isEmpty {
+                                links[i].previewImageSource = t
+                            }
+                        }
+                    }
+                    self.extractedLinks = links
                     self.isLoading = false
                 }
                 // extractedLinks の Content-Type 検証（並列）

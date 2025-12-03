@@ -49,3 +49,20 @@ final class UserDisplayName {
         self.displayName = displayName
     }
 }
+
+@Model
+final class PreviewOverride {
+    @Attribute(.unique) var id: String
+    var linkUrl: String
+    var overrideImageUrl: String
+    var title: String?
+    var createdAt: Date
+
+    init(id: String = UUID().uuidString, linkUrl: String, overrideImageUrl: String, title: String? = nil, createdAt: Date = Date()) {
+        self.id = id
+        self.linkUrl = linkUrl
+        self.overrideImageUrl = overrideImageUrl
+        self.title = title
+        self.createdAt = createdAt
+    }
+}
